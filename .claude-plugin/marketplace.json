@@ -1,0 +1,12 @@
+{
+  "name": "goodjack-claude-marketplace",
+  "owner": {
+    "name": "goodjack"
+  },
+  "metadata": {
+    "description": "goodjack's personal Claude Code plugin marketplace",
+    "version": "0.1.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": []
+}
