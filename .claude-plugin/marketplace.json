@@ -5,8 +5,13 @@
   },
   "metadata": {
     "description": "goodjack's personal Claude Code plugin marketplace",
-    "version": "0.1.0",
-    "pluginRoot": "./plugins"
+    "version": "0.1.0"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "code-review",
+      "description": "PR code review 工具，含互動式與 CI 自動化審查",
+      "source": "./plugins/code-review"
+    }
+  ]
 }
