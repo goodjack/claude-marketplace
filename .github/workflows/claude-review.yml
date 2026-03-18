@@ -1,0 +1,10 @@
+name: Claude AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    uses: goodjack-org/.github/.github/workflows/claude-pr-review.yml@main
+    secrets: inherit
