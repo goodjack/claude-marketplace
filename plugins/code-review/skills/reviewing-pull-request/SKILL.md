@@ -1,5 +1,7 @@
 ---
 name: reviewing-pull-request
+argument-hint: [PR 編號]
+version: 0.1.0
 description: >-
   當使用者想對 GitHub Pull Request 進行 code review 時使用。
   提供行級 review comments，含嚴重度 badge 與 merge-result 分析。
@@ -8,6 +10,18 @@ description: >-
   搭配 PR 識別（#123、PR 456、pr789、GitHub PR URL），
   或在 PR 語境下的泛用請求。
   不確定是否該觸發時，傾向觸發。
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Agent
+  - LSP
+  - Bash(git *)
+  - Bash(gh *)
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - AskUserQuestion
 ---
 
 # Pull Request Code Review
@@ -33,6 +47,8 @@ description: >-
 ## 詳細步驟
 
 ### 階段 0: 確認 PR 編號
+
+PR 編號： $ARGUMENTS
 
 若未提供 PR 編號，執行 `gh pr list` 顯示開啟中的 PR 列表，讓使用者選擇。
 
@@ -163,10 +179,10 @@ gh api repos/OWNER/REPO/pulls/NUMBER/reviews --input - <<'EOF'
 EOF
 ```
 
-Badge URL 格式：`https://img.shields.io/badge/<等級>-<顏色>?style=for-the-badge`
-- 嚴重問題 → red
-- 需要改進 → orange
-- 建議優化 → blue
+Badge URL 依三種等級使用下面三個 URL
+- 嚴重問題 MUST → https://img.shields.io/badge/嚴重問題%20MUST-red?style=for-the-badge
+- 需要改進 SHOULD → https://img.shields.io/badge/需要改進%20SHOULD-orange?style=for-the-badge
+- 建議優化 MAY → https://img.shields.io/badge/建議優化%20MAY-blue?style=for-the-badge
 
 關鍵技術細節：
 - `commit_id` 使用階段 2 的 `headRefOid`（不是 `baseRefOid`）
@@ -219,7 +235,3 @@ git stash pop
   - 主觀建議：基於經驗的建議
   - 無法驗證：需要進一步確認的問題
 - **修正前確認**：任何修正或刪除操作（如 comment、code、config）前必須先詢問使用者確認
-
----
-
-PR 編號: $ARGUMENTS
