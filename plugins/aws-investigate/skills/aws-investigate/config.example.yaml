@@ -1,0 +1,64 @@
+# AWS Investigation Skill - 設定範例
+# 複製此檔案為 config.local.yaml 並填入你的值。
+# 或讓 skill 在首次執行時透過互動式提問引導你完成設定。
+#
+# config.local.yaml 已加入 .gitignore，不會意外 commit
+# 環境特定或敏感的資訊。
+
+# ─── AWS Profile 預設值 ───────────────────────────────────────────────────────
+# 互動式選擇 profile（Phase 1）時，顯示為推薦選項。
+aws_profiles:
+  production: "my-prod-profile"       # 你的 production AWS CLI profile 名稱
+  staging: "my-staging-profile"       # 你的 staging AWS CLI profile 名稱
+
+# ─── Log Group 預設值 ─────────────────────────────────────────────────────────
+# 詢問 log group prefix（Phase 2）時，作為預設建議。
+default_log_group_prefix: "/app/myservice"
+
+# ─── Log 格式對應 ─────────────────────────────────────────────────────────────
+# 對應 log group 到其技術 stack，讓 skill 使用正確的查詢語法。
+# 常見格式（依你的 tech stack 調整）：
+#   python_structlog：level, event, logger, exc_info, lineno
+#   nuxt_ssr（pino）：level, namespace, msg, err.data.statusCode
+#   其他框架：先用 Scan 1 Step 0 探索實際 log 格式，再自行新增格式定義
+log_formats:
+  python_structlog:
+    - "/app/myservice/api"
+    - "/app/myservice/tasks"
+  nuxt_ssr:
+    - "/app/myservice/web"
+    - "/app/myservice/frontend"
+
+# ─── 後端 Error 識別關鍵字 ────────────────────────────────────────────────────
+# Scan 1 第一層用這些關鍵字 filter 外部 API 呼叫失敗的 log。
+# 第二層用 unhandled_exception 關鍵字 filter 未捕獲 exception。
+# 留空則使用 Scan 1 Step 0 通用探索查詢。
+backend_error_keywords:
+  external_api_failure: ""               # 如 "occur ERROR"、"HTTP request failed"、"request error"
+  unhandled_exception: "Exception in ASGI"  # ASGI 通用（FastAPI / Starlette）；其他框架填入對應的未捕獲 exception 關鍵字
+
+# ─── Athena（ALB Log 分析）────────────────────────────────────────────────────
+# Scan 4（ALB 查詢）需要。若不使用 Athena 可留空。
+athena:
+  workgroup: "my-athena-workgroup"
+  output_location: "s3://my-bucket/athena-results/"
+  default_tables:
+    backend_alb: "aws.alb_logs_backend"      # backend ALB table
+    frontend_alb: "aws.alb_logs_frontend"     # 對外 ALB table
+
+# ─── Redis Key Prefix ────────────────────────────────────────────────────────
+# T5（Redis Memory 調查）時用來 scan key pattern。
+# 只寫前綴，不含尾部的冒號或星號——skill 會自動加上 ":*"。
+redis_key_prefixes:
+  session: "myapp:session"
+  cache: "myapp:cache"
+  # 視需要新增更多前綴：
+  # auth_cache: "myapp:auth"
+
+# ─── 報告輸出 ─────────────────────────────────────────────────────────────────
+report_dir: "reports"
+
+# ─── 時區 ─────────────────────────────────────────────────────────────────────
+# 報告中的時間顯示和計算使用。
+timezone_offset: 8          # UTC 偏移小時數（如 8 代表 UTC+8）
+timezone_name: "TWN"        # 報告中使用的時區簡稱
