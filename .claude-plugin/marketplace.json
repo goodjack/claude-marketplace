@@ -12,6 +12,11 @@
       "name": "code-review",
       "description": "PR code review 工具，含互動式與 CI 自動化審查",
       "source": "./plugins/code-review"
+    },
+    {
+      "name": "aws-investigate",
+      "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷",
+      "source": "./plugins/aws-investigate"
     }
   ]
 }
