@@ -27,6 +27,50 @@
 
 > **已知案例：Bot 流量 + session 汙染**：Bot 大量爬取 + 前端 session `saveUninitialized: true`，導致每個 bot request 在 Redis 建新 session key。數小時內 CurrItems 線性成長數倍。關鍵判斷指標：CurrItems 線性成長 + SetTypeCmds 只微增 = 每個 SET 都是新 key。追查路徑：ALB UA 分析確認 bot 來源 → Redis CurrItems 確認 key 累積 → 前端 session module 確認 `saveUninitialized` 機制。
 
+## CloudFront Access Logs
+
+當 ALB 在 CloudFront 後面時，ALB `client_ip` 是 CDN edge IP，不是真實用戶 IP。需要查 CloudFront access log 取得真實來源。
+
+**查詢路徑（依可用性選擇）：**
+
+| 方式 | 條件 | 速度 |
+| --- | --- | --- |
+| CloudFront Athena table | 已建好 table（如 `{service}_cloudfront_logs`） | 快（SQL 查詢） |
+| S3 直接下載 | CF logging 有開但無 Athena table | 慢（下載 + 本地解析） |
+| Global WAF log | CloudFront 層有掛 WAF 且 logging 有開 | 快（有 country 欄位） |
+
+**CloudFront standard log 格式（tab-separated）：**
+- Field 5: `c-ip`（真實用戶 IP）
+- Field 20: `x-forwarded-for`
+- 無 country 欄位——需配合 geolocation 工具
+
+**S3 直接下載流程（無 Athena table 時）：**
+
+```bash
+# 1. 找到 CF distribution 的 log bucket
+aws cloudfront get-distribution --id {dist_id} --profile {profile} --output json \
+  | python3 -c "import json,sys; c=json.load(sys.stdin)['Distribution']['DistributionConfig']['Logging']; print(f'Bucket: {c[\"Bucket\"]}\nPrefix: {c[\"Prefix\"]}\nEnabled: {c[\"Enabled\"]}')"
+
+# 2. 列出目標時段的 log 檔（檔名含 UTC hour）
+aws s3 ls "s3://{bucket}/{prefix}/{dist_id}.{YYYY-MM-DD}-{HH}" --profile {profile}
+
+# 3. 下載 + 解壓 + 分析 c-ip
+aws s3 cp "s3://{bucket}/{prefix}/{file}.gz" /tmp/cf.gz --profile {profile}
+gunzip -f /tmp/cf.gz
+tail -n +3 /tmp/cf | awk -F'\t' '{print $5}' | sort | uniq -c | sort -rn | head -20
+```
+
+**IP Geolocation（batch 確認國家）：**
+
+`ipinfo.io` 免費額度 50K/月，單筆查詢無需 API key：
+
+```bash
+curl -s "https://ipinfo.io/{ip}/country"    # 回傳 2-letter country code
+curl -s "https://ipinfo.io/{ip}/json"       # 完整資訊（country, org, city）
+```
+
+比 `whois` 快 10 倍以上，適合 batch loop 50-100 筆快速分類。
+
 ## CloudWatch Alarms
 
 確認問題時段是否有既有 alarm 被觸發，避免重複調查已知問題。用 `aws cloudwatch describe-alarm-history --start-date --end-date --history-item-type StateUpdate` 查詢。

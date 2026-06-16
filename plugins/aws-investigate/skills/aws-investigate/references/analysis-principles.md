@@ -30,7 +30,21 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 
 > **提醒**：檢查你的 codebase 中 API caller 的實作。某些框架在 finally/middleware 中記錄請求 duration，會在 response 狀態碼被評估前就執行。不確定時，記下這個發現供未來調查參考。
 
-**陷阱 3：第三方回報「N bytes received」→ 判斷 timeout 位置**
+**陷阱 3：ALB 在 CloudFront 後面時，client_ip 和 WAF country 都不是真實用戶資訊**
+
+常見誤判場景：
+- ALB access log 的 `client_ip` → 看到的是 CloudFront edge IP（如 3.172.x、15.158.x、64.252.x），不是用戶 IP
+- Regional WAF log 的 `httprequest.country` → 反映 CloudFront edge 所在國家（TW/JP/US/SG），不是用戶國家
+- 只有 **CloudFront access log**（`c-ip` 欄位）或 **Global WAF log**（`httprequest.clientIp`）才有真實用戶 IP
+
+判斷 ALB 是否在 CDN 後面的線索：
+- ALB log 的 top client_ip 集中在少數 AWS/Apple CIDR（3.172/15.158/64.252/130.176/18.68/52.46）
+- `actions_executed` 含 `waf,forward`
+- 多個不同 domain 流量打同一個 ALB
+
+解法：見 `aws-tools.md` 的「CloudFront Access Logs」章節。
+
+**陷阱 4：第三方回報「N bytes received」→ 判斷 timeout 位置**
 
 當第三方（如 OIDC provider）回報 timeout 並附上 `N bytes received`，可以推算服務端在 HTTP response 傳送的哪個階段被截斷：
 
@@ -54,6 +68,31 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 1. CloudWatch log 缺失時，用 ALB 確認整個 endpoint 有無完成
 2. 懷疑某個 webhook / 長時間 API 有沒有在 timeout 前完成
 3. 驗證 `asyncio.gather()` 等平行操作是否全部完成
+
+---
+
+## 流量 Spike 分析方法
+
+當調查「流量突然增加」或「特定國家 IP 暴增」時，比較 spike 和 normal 時段的**集中度**比單純看國家/IP 分布更有意義：
+
+| 指標 | 計算方式 | 意義 |
+| --- | --- | --- |
+| **Requests/IP ratio** | total_requests ÷ unique_IPs | 集中度——數字越高代表越少 IP 打越多 request |
+| Country 佔比變化 | spike 期間 vs 正常期間的國家比例 | 是「新來源出現」還是「既有流量放大」 |
+| Unique IPs 數量 | 兩個時段的獨立 IP 數比較 | 新 IP 暴增 = 真正的新流量；IP 減少但 reqs 增加 = 密集請求 |
+
+**判讀邏輯：**
+
+| Spike 特徵 | reqs/IP ratio | unique IPs | 可能原因 |
+| --- | --- | --- | --- |
+| 新流量湧入 | 不變 | 暴增 | 行銷活動、社群分享、搜尋引擎索引 |
+| 少數 IP 密集請求 | 暴增 | 減少或不變 | Bot/scraper、aggressive polling、API abuse |
+| 整體放大 | 不變 | 微增 | 正常尖峰（如午休時段）、活動頁面效應 |
+
+**操作流程（用 CF log 或 ALB log）：**
+1. 用 `awk + sort + uniq -c` 算出 spike 和 normal 各自的 reqs/IP ratio
+2. 若 ratio 異常高：取 top IPs → `ipinfo.io` batch 確認來源
+3. 比較兩時段的 top paths 分布——是否打相同端點（正常瀏覽）或特定路徑（爬蟲/攻擊）
 
 ---
 
