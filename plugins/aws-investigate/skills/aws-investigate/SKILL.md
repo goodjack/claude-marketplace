@@ -73,11 +73,13 @@ AWS Profile: {profile}
 
 ### 工作流程分段
 
-將掃描流程分為獨立的 context 階段，每階段只帶入上一階段的壓縮摘要：
+入口 A 採漏斗式流程，先以固定 query set 做 Quick Triage，再由使用者決定是否深入。每階段只帶入上一階段的壓縮摘要：
 
 | 階段 | 輸入 | 執行方式 | 輸出 |
 | --- | --- | --- | --- |
-| Scan 1-2 彙總 | 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要 |
+| **Quick Triage** | 固定 query set + context.local | **Haiku** subagent（1 支，3 條 query） | 錯誤分布概覽 + 已知模式比對 |
+| **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
+| Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
 | Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
 | Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | P1/P2/P3 分級清單 |
 | T1-T4 深入調查 | P1/P2 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
@@ -165,18 +167,20 @@ fields @timestamp, @message
 5. AskUserQuestion：Athena 設定——workgroup 名稱、S3 output 路徑、ALB table 名稱。（可跳過。）
 6. AskUserQuestion：Redis key prefix（session、cache 等 pattern）。（可跳過。）
 7. AskUserQuestion：時區偏移量和標籤（預設：UTC+8、TWN）。
-8. 將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
-9. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
+8. AskUserQuestion：相關 codebase repo 路徑（如前端、其他後端）。調查中追蹤呼叫鏈常需跨 repo，提前收集可避免中途中斷。（可跳過。）
+9. 將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
+10. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
 若使用者以 `/aws-investigate <args>` 觸發且帶有參數（`$ARGUMENTS`）：
 
 - 參數含 hex fragment（如 `69dfb888`）或 trace ID 格式 → 作為 trace ID，跳過 Phase 3，直接進入入口 B
-- 參數為 `scan`、`weekly`、`report` → 跳過 Phase 3，直接進入入口 A
+- 參數為 `scan`、`weekly`、`report` → 跳過 Phase 3，直接進入入口 A **完整版（自動跳過 checkpoint）**
+- 參數為 `quick`、`triage`，或自然語言暗示快速檢查（如「有沒有狀況」「大致看一下」「快速掃一下」） → 跳過 Phase 1-3，用 `{config}` 預設值直接進入入口 A Quick Triage（含 checkpoint）。**前提：`config.local.yaml` 必須存在**，否則 fallback 到 Phase 1-3 互動流程
 - 其他參數作為 error keyword 或 endpoint path → 進入入口 B
 
-Phase 1（選 AWS Profile）和 Phase 2（選 Log Group）仍需確認，但可用 `{config}` 中的預設值作為 AskUserQuestion 的推薦選項加速流程。
+Phase 1（選 AWS Profile）和 Phase 2（選 Log Group）仍需確認，但可用 `{config}` 中的預設值作為 AskUserQuestion 的推薦選項加速流程。Quick Triage 入口可直接使用預設值跳過確認。
 
 ### Phase 1-3：互動式設定
 
@@ -230,7 +234,8 @@ aws logs describe-log-groups \
 
 | 使用者需求 | 入口 | 需載入的 references |
 |-----------|------|-------------------|
-| 「查 log」「看 error」「每週 error 統整」 | A：定期掃描 | `query-basics` → `periodic-scan` → `report-template` |
+| 「有沒有狀況」「大致看一下」「quick scan」 | A：Quick Triage | 無（僅用 config + context.local） |
+| 「查 log」「看 error」「每週 error 統整」 | A：完整掃描 | `query-basics` → `periodic-scan` → `report-template` |
 | 「這個 trace 怎麼了」「查這個 error」 | B：特定問題調查 | `query-basics` → `investigation-toolkit` |
 | 「看 ALB」「container crash」 | B → 直接 T1/Scan 4 | `query-basics` → `aws-tools` |
 | 「Redis 暴增」「memory 異常」 | B → 直接 T5 | `query-basics` → `investigation-toolkit`(T5) → `aws-tools` → `metrics-charts` |
@@ -240,9 +245,62 @@ aws logs describe-log-groups \
 
 ### 入口 A：定期掃描
 
-進入此流程前，依序讀取：
+入口 A 採漏斗式流程：Quick Triage → Checkpoint → 完整掃描。預設在 Checkpoint 暫停，由使用者決定是否深入。
+
+#### Step 1：Quick Triage（不載入 references）
+
+**前提**：`config.local.yaml` 必須存在且含 `log_formats`。不存在時跳過 Quick Triage，fallback 到 Phase 1-3 互動流程再進 Step 3 完整掃描。
+
+用 **1 支 Haiku subagent** 執行以下固定 query set（3 條 Insights 查詢）。時間範圍從使用者自然語言擷取，未指定則預設最近 7 天。
+
+**Log group 選擇**：從 `{config.log_formats}` 取第一組作為主 backend log group，第二組作為主 frontend log group。若 config 有 `quick_triage.backend_log_group` / `quick_triage.frontend_log_group` 則優先使用。只有一組 log format 時，只跑 Q1 + Q2。
+
+**Group-by 欄位選擇**：
+
+| Log 格式 | 後端 group-by 欄位 | 前端 group-by 欄位 |
+| --- | --- | --- |
+| 內建預設 | `event` (structlog) | `namespace` (pino) |
+| Config 覆蓋 | `{config.quick_triage.backend_group_by}` | `{config.quick_triage.frontend_group_by}` |
+
+若 config 未指定 group-by 且 log 格式不明，使用通用 fallback：`fields @message | filter level = "error" | stats count(*) as cnt by substr(@message, 0, 120) | sort cnt desc | limit 20`，讓使用者從結果中辨識 error 類型。
+
+**Query set**：
+
+| 查詢 | Log Group | Query |
+| --- | --- | --- |
+| Q1：後端 error 分布 | `{backend_log_group}` | `fields {backend_group_by} \| filter level = "error" \| stats count(*) as cnt by {backend_group_by} \| sort cnt desc \| limit 20` |
+| Q2：後端 error 每日趨勢 | `{backend_log_group}` | `fields @timestamp \| filter level = "error" \| stats count(*) as cnt by datefloor(@timestamp, 1d) as day \| sort day asc` |
+| Q3：前端 error 分布 | `{frontend_log_group}` | `fields {frontend_group_by} \| filter level = "error" \| stats count(*) as cnt by {frontend_group_by} \| sort cnt desc \| limit 20` |
+
+**結果異常處理**：若任何查詢 `recordsMatched = 0` 或 group-by 結果全為空值，可能是欄位名稱不符。提示使用者：「查詢結果為空，可能是 log 格式與預設欄位不符。建議在 `config.local.yaml` 的 `quick_triage` 區段設定正確的 group-by 欄位，或執行完整掃描（含探索查詢）。」
+
+取得 subagent 回傳的摘要後，在主對話中執行：
+
+1. 比對 `context.local.md` 已知模式（若存在），標記每個 error 為「已知雜訊」「已知正常」「需關注」「未知（需調查）」。無 `context.local.md` 時跳過比對，直接展示原始分布
+2. 從每日趨勢辨識 spike 或異常成長
+3. 產出摘要表呈現給使用者，含判斷依據
+
+#### Step 2：Checkpoint
+
+展示 Quick Triage 摘要後，問使用者：
+
+> 以上是 error 概覽。要怎麼處理？
+> - **繼續完整掃描**（Scan 1-5 + 調查，需載入 references）
+> - **只追查特定項目**（指定後進入調查工具箱）
+> - **存成簡易報告後結束**（把摘要寫成 `reports/` 檔案留紀錄，方便日後比較）
+> - **到這裡就夠了**（不存檔，對話摘要即產出）
+
+選擇「存成簡易報告」時，將 Quick Triage 摘要（error 分布表 + 每日趨勢 + 已知模式比對結果）寫入 `reports/YYYY-MM-DDTHHMM-triage.md`，不需要載入 `references/report-template.md`，格式從簡。
+
+**自動跳過 checkpoint 的條件**：快捷入口參數為 `weekly` 或 `report` 時，自動選擇「繼續完整掃描」。
+
+#### Step 3：完整掃描（使用者確認後才進入）
+
+進入此階段前，依序讀取：
 1. `references/query-basics.md` — Log 格式、CLI 操作、查詢工具選擇
 2. `references/periodic-scan.md` — Scan 1-5 完整流程
+
+**Quick Triage 的結果直接作為 Scan 1 Step 0 的輸出**——從 Scan 1 第一層（外部 API 呼叫失敗）開始，跳過 Step 0 探索查詢，避免重複。
 
 完成 Scan 5 篩選後，對 P1/P2 問題：
 3. `references/investigation-toolkit.md` — T1-T4 調查工具箱
@@ -339,6 +397,7 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 - [ ] 逐行 code reference、查證段落、完整查詢指令沒有出現在報告本文
 - [ ] 沒有使用絕對語句描述資料有混合結果的觀察（見 `analysis-principles.md` 語言精準）
 - [ ] 不同觀測層的數據沒有混在同一行呈現
+- [ ] 報告文字遵循使用者指定的語言與用語規則；未指定時預設台灣正體中文
 
 ---
 
