@@ -2,7 +2,7 @@
 
 適用時機：統整一段時間（如一週）的 error 全貌，找出需要修復的系統性問題。
 
-**完整流程：Scan 1-4 彙總 → Scan 5 篩選 → 對 P1/P2 問題執行調查工具箱 → 產出報告。**
+**完整流程：Scan 1-4 彙總 → Scan 5 篩選 → 對 🔴高/🟡中 問題執行調查工具箱 → 產出報告。**
 
 ---
 
@@ -305,23 +305,23 @@ aws athena get-query-results \
 
 綜合 Scan 1-4 的彙總結果，依以下標準篩選需要深入分析的問題：
 
-**自動升級為 P1（必須深入）：**
+**🔴高（必須深入）：**
 - 5xx 連鎖反應（一個服務 503 導致下游多個 endpoint 500）
 - `target_status_code = '-'`（container crash）
 - 新出現的 error pattern（過去報告中未見過）
 - 有使用者可見影響（前端 500、頁面空白、功能失效）
 
-**自動升級為 P2（應該深入）：**
+**🟡中（應該深入）：**
 - 彙總 count 前三名的 error 類型
 - `target_processing_time > 10s` 的慢請求
 - 前後端同時出現的相關錯誤（同一功能的前端 5xx + 後端 error）
 
-**P3（記錄但不深入）：**
+**⚪低（記錄但不深入）：**
 - 已知雜訊（爬蟲、掃描流量，見 Scan 3）
 - 已在 `references/known-patterns.md` 或 `context.local.md`（若存在）中標記為「正常行為」的項目
 - 數量穩定且無增長趨勢的既有 error
 
-**對每個 P1/P2 問題，執行調查工具箱（`references/investigation-toolkit.md`）取得：**
+**對每個 🔴高/🟡中 問題，執行調查工具箱（`references/investigation-toolkit.md`）取得：**
 - 具體的 trace 時序（T2）
 - 完整的 exception 內容（T3）
 - 程式碼位置與 root cause（T4）

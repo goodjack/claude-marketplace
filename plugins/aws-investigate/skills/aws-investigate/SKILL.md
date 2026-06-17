@@ -81,8 +81,8 @@ AWS Profile: {profile}
 | **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
 | Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
 | Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
-| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | P1/P2/P3 分級清單 |
-| T1-T4 深入調查 | P1/P2 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
+| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴高/🟡中/⚪低 分級清單 |
+| T1-T4 深入調查 | 🔴高/🟡中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
 | 產出報告 | 全部摘要 | **主對話 Opus** | `reports/` 檔案 |
 
 ### 取樣查詢的 token 節約
@@ -253,12 +253,12 @@ aws logs describe-log-groups \
 | 使用者需求 | 入口 | 需載入的 references |
 |-----------|------|-------------------|
 | 「有沒有狀況」「大致看一下」「quick scan」 | A：Quick Triage | 無（僅用 config + context.local.md） |
-| 「查 log」「看 error」「每週 error 統整」 | A：完整掃描 | `query-basics` → `periodic-scan` → `report-template` |
+| 「查 log」「看 error」「每週 error 統整」 | A：完整掃描 | `query-basics` → `periodic-scan` → `report-guidelines` + `report-template` |
 | 「這個 trace 怎麼了」「查這個 error」 | B：特定問題調查 | `query-basics` → `investigation-toolkit` |
 | 「看 ALB」「container crash」 | B → 直接 T1/Scan 4 | `query-basics` → `aws-tools` |
 | 「Redis 暴增」「memory 異常」 | B → 直接 T5 | `query-basics` → `investigation-toolkit`(T5) → `aws-tools` → `metrics-charts` |
 | 「效能變慢」「部署後異常」 | B → 直接 T1 | `query-basics` → `investigation-toolkit`(T1) → `aws-tools` → `metrics-charts` |
-| 「寫事件報告」「incident report」 | 視情境 | `report-template` → `analysis-principles` |
+| 「寫事件報告」「incident report」 | 視情境 | `report-guidelines` + `report-template` → `analysis-principles` |
 | 「上次報告提到的那個問題」 | B | `query-basics` → `known-patterns` → `investigation-toolkit`（`context.local.md` 已在 Phase 0 載入） |
 
 ### 入口 A：定期掃描
@@ -326,12 +326,13 @@ aws logs describe-log-groups \
 
 **Quick Triage 的結果直接作為 Scan 1 Step 0 的輸出**——從 Scan 1 第一層（外部 API 呼叫失敗）開始，跳過 Step 0 探索查詢，避免重複。
 
-完成 Scan 5 篩選後，對 P1/P2 問題：
+完成 Scan 5 篩選後，對 🔴高/🟡中 問題：
 3. `references/investigation-toolkit.md` — T1-T4 調查工具箱
 
 產出報告時：
-4. `references/report-template.md` — 報告模板與撰寫原則
-5. `references/analysis-principles.md` — 判讀原則與驗證守則
+4. `references/report-guidelines.md` — 撰寫原則與風格指引
+5. `references/report-template.md` — 報告模板（純結構）
+6. `references/analysis-principles.md` — 判讀原則與驗證守則
 
 視需要參考：
 - `references/aws-tools.md` — AWS 診斷工具速查
@@ -347,9 +348,10 @@ aws logs describe-log-groups \
 2. `references/investigation-toolkit.md` — T1-T4 調查工具箱
 
 完成調查後（視需要）：
-3. `references/report-template.md` — 報告模板
-4. `references/known-patterns.md` — 比對已知行為
-5. `references/metrics-charts.md` — 產圖附在報告中
+3. `references/report-guidelines.md` — 撰寫原則
+4. `references/report-template.md` — 報告模板
+5. `references/known-patterns.md` — 比對已知行為
+6. `references/metrics-charts.md` — 產圖附在報告中
 
 > `context.local.md` 已在 Phase 0 載入，不需要在此階段重複讀取。
 
@@ -389,34 +391,33 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 
 ## 報告自檢（報告完成後、提交使用者前執行）
 
-### Pass 1：完整性檢查
-- [ ] 每個 P1/P2 都包含全部六面向（情境/錯誤流程/root cause/用戶影響/潛在議題/建議）
-- [ ] 每個數據聲明都有 [Qn] 查詢來源編號
-- [ ] 行動清單每行都有「優先序 + 項目 + 負責 + 完成標準 + 追蹤」（追蹤欄在互動階段後補完）
-- [ ] 附錄的每個 Qn 都有完整 CLI 指令可重現
-- [ ] 報告路徑正確：reports/YYYY-MM-DDTHHMM.md
-- [ ] 涉及基礎設施指標異常的 P1/P2 附有 CloudWatch 圖表（PNG），存放於 `reports/assets/{basename}/`
+### Pass 1：完整性
+- [ ] 每個 🔴高/🟡中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
+- [ ] 每個數據聲明附 `[Qn]` 來源編號（規則見 `analysis-principles.md`「數據點附查詢來源」）
+- [ ] 行動清單每行 6 欄位齊全（格式見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
+- [ ] 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現
+- [ ] 報告路徑正確：`reports/YYYY-MM-DDTHHMM.md`
+- [ ] 涉及基礎設施指標異常的 🔴高/🟡中 附 CloudWatch 圖表（PNG），存放於 `reports/assets/{basename}/`
 
-### Pass 2：正確性檢查
+### Pass 2：正確性
+- [ ] 🔴高/🟡中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）
+- [ ] 「扣除雜訊後」的數字計算邏輯正確（去重、排除爬蟲）
 - [ ] ASCII flow 中的系統元件名稱與實際 log group 一致
 - [ ] 敏感資訊（token、secret、client_secret）已遮蔽
-- [ ] P1/P2 的 root cause 分析有 Grep/Read 的程式碼證據支撐（非推測）
-- [ ] 「扣除雜訊後」的數字計算邏輯正確（去重、排除爬蟲）
 - [ ] 若發現已知行為已被修復，行動清單加入 `[維護] 更新 context.local.md：標記 {pattern} 為 [已修復 YYYY-MM]`
 
-### Pass 3：可讀性檢查（事件報告適用）
-- [ ] 報告符合 3-30-300 Rule：主管 30 秒讀完 Executive Card 即可掌握結論；工程師 5 分鐘讀完事件總覽即可了解全貌
+### Pass 3：可讀性（原則見 `report-guidelines.md`）
+- [ ] 3-30-300 分層：不展開任何東西的讀者就能做決策
 - [ ] Executive Card 只包含事實和已決定的事，沒有未經團隊決策的時程或承諾
 - [ ] Action Items 明確標示為初步建議（Proposed），沒有把 AI 建議寫成團隊已定案的決策
-- [ ] 「發生什麼事」使用 bullet points、「為什麼會這樣」和「排除的假設」使用表格，不是整段散文（wall of text）
-- [ ] 語氣是 Professional Plain Language（Knowledgeable Friend）：清楚直接好吸收，不是書面腔也不是過度口語
-- [ ] 符合 DRY 原則：同一個事實只出現在一個 section，其他地方不重述
-- [ ] 報告是精簡的「發生什麼→為什麼→怎麼辦」結構，不是調查過程的流水帳
-- [ ] 符合 Flexible Template 原則：只保留適用的 section（如各角色重點），不適用的直接省略，不硬湊字數
-- [ ] 逐行 code reference、查證段落、完整查詢指令沒有出現在報告本文
-- [ ] 沒有使用絕對語句描述資料有混合結果的觀察（見 `analysis-principles.md` 語言精準）
-- [ ] 不同觀測層的數據沒有混在同一行呈現
-- [ ] 報告文字遵循使用者指定的語言與用語規則；未指定時預設台灣正體中文
+- [ ] 格式：「發生什麼事」用 bullet points、「為什麼會這樣」和「排除的假設」用表格，不是整段散文
+- [ ] 語氣為 Professional Plain Language（Knowledgeable Friend），不是書面腔或過度口語
+- [ ] DRY：同一事實只在一個 section 出現
+- [ ] 精簡結構：「發生什麼→為什麼→怎麼辦」，不是調查過程的流水帳
+- [ ] Flexible Template：只保留適用的 section，不適用的直接省略，不硬湊字數
+- [ ] 技術細節與主要敘事分離：逐行 code reference、查證段落、完整查詢指令不在報告本文
+- [ ] 語言精準：混合結果用限定語、不同觀測層數據不混行（見 `analysis-principles.md`）
+- [ ] 報告文字預設台灣正體中文；使用者指定其他語言時從之
 
 ---
 
