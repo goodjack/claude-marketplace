@@ -77,7 +77,7 @@ AWS Profile: {profile}
 
 | 階段 | 輸入 | 執行方式 | 輸出 |
 | --- | --- | --- | --- |
-| **Quick Triage** | 固定 query set + context.local | **Haiku** subagent（1 支，3 條 query） | 錯誤分布概覽 + 已知模式比對 |
+| **Quick Triage** | 固定 query set + context.local.md | **Haiku** subagent（1 支，3 條 query） | 錯誤分布概覽 + 已知模式比對 |
 | **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
 | Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
 | Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
@@ -128,7 +128,7 @@ fields @timestamp, @message
 
 檢查 `${CLAUDE_SKILL_DIR}/config.local.yaml` 是否存在：
 
-**存在** → 讀取為 `{config}` 變數，用於後續所有預設值。
+**存在** → 讀取為 `{config}` 變數，用於後續所有預設值。結構定義見 `${CLAUDE_SKILL_DIR}/config.example.yaml`（含每個欄位的用途註解）。
 
 **Step 2：專案特定知識**
 
@@ -146,13 +146,11 @@ fields @timestamp, @message
 - Log group 對應 → 名稱與實際 tech stack 是否一致
 - 報告與追蹤慣例 → issue tracker 欄位、事件報告格式、團隊 owner 標記方式
 
-產出 `context.local.md`，包含兩類內容：
+產出 `context.local.md`，包含三類內容：
 
-1. **Log 格式與操作知識**（影響「怎麼查」）——error log 配對關係、trace ID 格式、API caller 的 duration log 陷阱、log group 名稱 vs 實際 tech stack
-2. **已知行為模式**（影響「怎麼判」）——各觀測層（前端 ALB / 後端 ALB / 前端 CW / 後端 CW / Redis）獨立表格，欄位：模式 | 影響範圍 | 判斷 | 說明
+1. **Log 格式與操作知識**（影響「怎麼查」）——error log 配對關係、trace ID 格式、欄位存在條件陷阱、API caller 的 duration log 陷阱、log group 名稱 vs 實際 tech stack
+2. **已知行為模式**（影響「怎麼判」）——各觀測層（前端 ALB / 後端 ALB / 前端 CW / 後端 CW / Redis）獨立表格，欄位：模式 | 影響範圍 | 判斷 | 說明 | 發現時間
 3. **報告與追蹤慣例**（影響「怎麼交付」）——issue tracker 命名、owner 標記、報告固定章節、團隊慣用嚴重度定義
-
-建立後告知使用者此檔案會在後續調查中持續更新。使用者拒絕則跳過，依賴內建流程、通用版 `known-patterns.md` 和 Scan 1 Step 0 探索查詢。
 
 **內建流程不符合時**：不要先要求使用者改設定，也不要假設另一套架構。先用探索查詢、Grep/Read、現有 config 找出實際規則；當某個規則可重複使用時，在調查後更新 `context.local.md`。
 
@@ -160,16 +158,36 @@ fields @timestamp, @message
 
 **Config 不存在時** → 進入首次設定流程：
 
-1. 說明：「這個 skill 需要一些 AWS 環境設定。我會引導你完成設定——答案會儲存在 `config.local.yaml`，只需要做一次。」
-2. AskUserQuestion：AWS profile 名稱（production + staging）。先列出可用 profile：`aws configure list-profiles`。
-3. AskUserQuestion：預設 log group prefix（如 `/app/myservice`）。
-4. AskUserQuestion：Log 格式對應——哪些 log group 使用 Python structlog、哪些是 Nuxt SSR 格式？（或「全部相同格式」適用於單純架構。）
-5. AskUserQuestion：Athena 設定——workgroup 名稱、S3 output 路徑、ALB table 名稱。（可跳過。）
-6. AskUserQuestion：Redis key prefix（session、cache 等 pattern）。（可跳過。）
-7. AskUserQuestion：時區偏移量和標籤（預設：UTC+8、TWN）。
-8. AskUserQuestion：相關 codebase repo 路徑（如前端、其他後端）。調查中追蹤呼叫鏈常需跨 repo，提前收集可避免中途中斷。（可跳過。）
-9. 將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
-10. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
+1. 說明：「這個 skill 需要一些 AWS 環境設定才能查詢。我會先偵測環境，再請你確認——答案會儲存在 `config.local.yaml`，只需要做一次。」
+
+2. **偵測 AWS Profiles**：執行 `aws configure list-profiles`。
+
+3. **AskUserQuestion（第一輪——核心設定）**：
+   - AWS profile（radio）：「要用哪個 profile 查詢 production 環境？」顯示偵測到的 profiles 作為選項。
+   - Staging profile（radio）：「Staging 環境的 profile？（比對 prod/staging 差異時會用到）」若偵測到的 profiles 中有明顯 staging 名稱可推薦。若專案沒有 staging 環境，選「沒有 staging 環境」。
+   - Log group prefix：「Log group 的共同前綴是什麼？（例如 `/app/myservice`，用來找出要掃描的 log groups）」
+   - 時區（radio）：預設推薦 UTC+8 / TWN。
+
+4. **偵測 Log Groups + 格式**（用使用者選的 profile 和 prefix）：
+   - 執行 `aws logs describe-log-groups` 列出符合的 log groups
+   - 用 AskUserQuestion（checkbox）讓使用者確認要掃描哪些 log groups（預設全選）
+   - 用 AskUserQuestion 詢問每個選中 log group 的格式：「這些 log groups 分別是什麼格式？（影響查詢語法和欄位名稱）」提供選項：Python structlog / Nuxt SSR (pino) / 其他
+
+5. **偵測 Athena（ALB log 查詢用）**：
+   - 執行 `aws athena list-work-groups --profile {profile}`
+   - 若偵測到 workgroup：
+     a. 只有一個 → 自動選用，告知使用者
+     b. 多個 → AskUserQuestion 讓使用者選擇
+   - 執行 `SHOW TABLES` 列出可用的 table
+   - 用 AskUserQuestion 讓使用者選擇 ALB table：「以下是 Athena 中的 table，哪些是 ALB access log？（用來分析 container crash、慢請求等 CloudWatch 看不到的問題）」
+   - 若偵測不到 workgroup 或 table：「你的專案有用 Athena 查詢 ALB log 嗎？若沒有使用，選『沒有使用 Athena』」
+
+6. **AskUserQuestion（第二輪——補充設定）**：
+   - Redis key prefix：「Redis 的 key prefix pattern？（追查 Redis memory 暴增時用來辨識 key 來源，例如 `session:`、`cache:` 等）」提供常見 prefix 選項 + 自訂。若專案沒用 Redis，選「沒有使用 Redis」。
+   - 相關 codebase repo 路徑：「其他相關的 codebase repo 路徑？（調查中追蹤呼叫鏈常需跨 repo 看程式碼）」選項：自訂輸入。若只有當前 repo，選「只有當前 repo」。答案寫入 config 的 `related_repos` key。
+
+7. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
+8. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
@@ -177,7 +195,7 @@ fields @timestamp, @message
 
 - 參數含 hex fragment（如 `69dfb888`）或 trace ID 格式 → 作為 trace ID，跳過 Phase 3，直接進入入口 B
 - 參數為 `scan`、`weekly`、`report` → 跳過 Phase 3，直接進入入口 A **完整版（自動跳過 checkpoint）**
-- 參數為 `quick`、`triage`，或自然語言暗示快速檢查（如「有沒有狀況」「大致看一下」「快速掃一下」） → 跳過 Phase 1-3，用 `{config}` 預設值直接進入入口 A Quick Triage（含 checkpoint）。**前提：`config.local.yaml` 必須存在**，否則 fallback 到 Phase 1-3 互動流程
+- 參數為 `quick`、`triage`，或自然語言暗示快速檢查（如「有沒有狀況」「大致看一下」「快速掃一下」） → 跳過 Phase 1-3，用 `{config}` 預設值直接進入入口 A Quick Triage（含 checkpoint）。**前提：`config.local.yaml` 必須存在且含 `log_formats`**，否則 fallback 到 Phase 1-3 互動流程
 - 其他參數作為 error keyword 或 endpoint path → 進入入口 B
 
 Phase 1（選 AWS Profile）和 Phase 2（選 Log Group）仍需確認，但可用 `{config}` 中的預設值作為 AskUserQuestion 的推薦選項加速流程。Quick Triage 入口可直接使用預設值跳過確認。
@@ -234,45 +252,51 @@ aws logs describe-log-groups \
 
 | 使用者需求 | 入口 | 需載入的 references |
 |-----------|------|-------------------|
-| 「有沒有狀況」「大致看一下」「quick scan」 | A：Quick Triage | 無（僅用 config + context.local） |
+| 「有沒有狀況」「大致看一下」「quick scan」 | A：Quick Triage | 無（僅用 config + context.local.md） |
 | 「查 log」「看 error」「每週 error 統整」 | A：完整掃描 | `query-basics` → `periodic-scan` → `report-template` |
 | 「這個 trace 怎麼了」「查這個 error」 | B：特定問題調查 | `query-basics` → `investigation-toolkit` |
 | 「看 ALB」「container crash」 | B → 直接 T1/Scan 4 | `query-basics` → `aws-tools` |
 | 「Redis 暴增」「memory 異常」 | B → 直接 T5 | `query-basics` → `investigation-toolkit`(T5) → `aws-tools` → `metrics-charts` |
 | 「效能變慢」「部署後異常」 | B → 直接 T1 | `query-basics` → `investigation-toolkit`(T1) → `aws-tools` → `metrics-charts` |
 | 「寫事件報告」「incident report」 | 視情境 | `report-template` → `analysis-principles` |
-| 「上次報告提到的那個問題」 | B | `query-basics` → `known-patterns` → `investigation-toolkit`（`context.local` 已在 Phase 0 載入） |
+| 「上次報告提到的那個問題」 | B | `query-basics` → `known-patterns` → `investigation-toolkit`（`context.local.md` 已在 Phase 0 載入） |
 
 ### 入口 A：定期掃描
 
-入口 A 採漏斗式流程：Quick Triage → Checkpoint → 完整掃描。預設在 Checkpoint 暫停，由使用者決定是否深入。
+入口 A 採漏斗式流程：上次追蹤偵測 → Quick Triage → Checkpoint → 完整掃描。預設在 Checkpoint 暫停，由使用者決定是否深入。
+
+#### Step 0：掃描參數確認
+
+從使用者自然語言擷取掃描區間，未指定則預設 7 天。同時偵測 `reports/` 目錄中是否有該區間內的定期掃描報告。
+
+用 **一次 AskUserQuestion** 列出建議值讓使用者確認或調整：
+- **掃描區間**：建議值 = 使用者指定或預設 7 天
+- **上次追蹤**：
+  - 偵測到報告 → 建議「比對 {檔名}」（Recommended）
+  - 未偵測到 → 選項：提供檔案路徑 / 擴展時間範圍為 2 倍區間（一次查詢涵蓋兩期）/ 跳過
+
+選擇「擴展時間範圍」時，後續所有查詢的時間範圍改為 2 倍區間。上次追蹤的比對只做簡單確認——上次報告的行動項目在本次是否仍存在、量體升降——不對上次做深入調查。
 
 #### Step 1：Quick Triage（不載入 references）
 
 **前提**：`config.local.yaml` 必須存在且含 `log_formats`。不存在時跳過 Quick Triage，fallback 到 Phase 1-3 互動流程再進 Step 3 完整掃描。
 
-用 **1 支 Haiku subagent** 執行以下固定 query set（3 條 Insights 查詢）。時間範圍從使用者自然語言擷取，未指定則預設最近 7 天。
+用 **1 支 Haiku subagent** 執行以下固定 query set。時間範圍為 Step 0 決定的範圍。
 
-**Log group 選擇**：從 `{config.log_formats}` 取第一組作為主 backend log group，第二組作為主 frontend log group。若 config 有 `quick_triage.backend_log_group` / `quick_triage.frontend_log_group` 則優先使用。只有一組 log format 時，只跑 Q1 + Q2。
+**Log group 選擇**：從 `{config.log_formats}` 取所有 log groups，按格式類型分組。同格式的 log groups 合併到同一個 Insights 查詢（CloudWatch Insights 支援多 log group）。
 
-**Group-by 欄位選擇**：
+**Group-by 欄位**：依格式類型對應內建預設——`python_structlog` 用 `event`、`nuxt_ssr` 用 `namespace`。格式不明時用通用 fallback：`substr(@message, 0, 120)`。
 
-| Log 格式 | 後端 group-by 欄位 | 前端 group-by 欄位 |
+**Query set**（每種格式各一組）：
+
+| 查詢 | Log Groups | Query |
 | --- | --- | --- |
-| 內建預設 | `event` (structlog) | `namespace` (pino) |
-| Config 覆蓋 | `{config.quick_triage.backend_group_by}` | `{config.quick_triage.frontend_group_by}` |
+| 分布 | 該格式所有 log groups | `fields {group_by} \| filter level = "error" \| stats count(*) as cnt by {group_by} \| sort cnt desc \| limit 20` |
+| 每日趨勢 | 該格式所有 log groups | `fields @timestamp \| filter level = "error" \| stats count(*) as cnt by bin(1d) as day \| sort day asc` |
 
-若 config 未指定 group-by 且 log 格式不明，使用通用 fallback：`fields @message | filter level = "error" | stats count(*) as cnt by substr(@message, 0, 120) | sort cnt desc | limit 20`，讓使用者從結果中辨識 error 類型。
+**結果異常處理**：若任何查詢 `recordsMatched = 0` 或 group-by 結果全為空值，可能是欄位名稱不符。提示使用者確認 log 格式設定，或執行完整掃描（含探索查詢）。
 
-**Query set**：
-
-| 查詢 | Log Group | Query |
-| --- | --- | --- |
-| Q1：後端 error 分布 | `{backend_log_group}` | `fields {backend_group_by} \| filter level = "error" \| stats count(*) as cnt by {backend_group_by} \| sort cnt desc \| limit 20` |
-| Q2：後端 error 每日趨勢 | `{backend_log_group}` | `fields @timestamp \| filter level = "error" \| stats count(*) as cnt by datefloor(@timestamp, 1d) as day \| sort day asc` |
-| Q3：前端 error 分布 | `{frontend_log_group}` | `fields {frontend_group_by} \| filter level = "error" \| stats count(*) as cnt by {frontend_group_by} \| sort cnt desc \| limit 20` |
-
-**結果異常處理**：若任何查詢 `recordsMatched = 0` 或 group-by 結果全為空值，可能是欄位名稱不符。提示使用者：「查詢結果為空，可能是 log 格式與預設欄位不符。建議在 `config.local.yaml` 的 `quick_triage` 區段設定正確的 group-by 欄位，或執行完整掃描（含探索查詢）。」
+**recordsMatched 與 top 20 的差距**：若 top 20 的 count 加總遠小於 recordsMatched，表示大量 error 有 unique event string（如含 UUID、request path 的 middleware log），被 group-by 稀釋。此時需在完整掃描 Scan 1 中用排除法或 `parse` 萃取 event 前綴重新分群。
 
 取得 subagent 回傳的摘要後，在主對話中執行：
 
@@ -292,7 +316,7 @@ aws logs describe-log-groups \
 
 選擇「存成簡易報告」時，將 Quick Triage 摘要（error 分布表 + 每日趨勢 + 已知模式比對結果）寫入 `reports/YYYY-MM-DDTHHMM-triage.md`，不需要載入 `references/report-template.md`，格式從簡。
 
-**自動跳過 checkpoint 的條件**：快捷入口參數為 `weekly` 或 `report` 時，自動選擇「繼續完整掃描」。
+**自動跳過 checkpoint 的條件**：快捷入口參數為 `scan`、`weekly` 或 `report` 時，自動選擇「繼續完整掃描」。
 
 #### Step 3：完整掃描（使用者確認後才進入）
 
@@ -333,38 +357,33 @@ aws logs describe-log-groups \
 
 ## 報告補完互動（技術調查完成後、產出最終報告前）
 
-AI agent 能查到技術根因和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 引導使用者補完以下內容：
+AI agent 能查到技術根因和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 向使用者收集以下資訊。所有收集到的資訊直接寫入最終報告，報告產出後不預期有人回來更新。
 
 ### 1. 使用者影響（AI 查不到）
 
-> 技術指標顯示 {摘要技術影響}。
-> 請補充使用者面向的影響（可跳過不確定的項目）：
-> - 使用者感受到什麼？（頁面變慢 / 功能中斷 / 完全無法使用）
-> - 影響範圍？（全部使用者 / 特定條件 / 百分比）
-> - 有客訴嗎？大約幾件？
-> - 有營收或業務指標影響嗎？
+- 使用者感受到什麼？（頁面變慢 / 功能中斷 / 完全無法使用）
+- 影響範圍？（全部使用者 / 特定條件 / 百分比）
+- 有客訴嗎？大約幾件？
+- 有營收或業務指標影響嗎？
 
-使用者回答後，將量化資訊整合到報告的「發生什麼事」和「各角色要知道的事」中。使用者回答「不確定」或「沒有」的項目不放進報告。
+使用者回答「不確定」或「沒有」的項目不放進報告。
 
 ### 2. 系統性根因（AI 查不到）
 
-> 技術根因是 {root cause}。
-> 想請你從流程面想一下：
-> - 這個問題有沒有可能在更早的階段被發現？（code review / 測試 / 監控）
-> - 是什麼流程缺口讓它到了線上才爆發？
-> - 有沒有類似的風險可能存在於其他地方？
+- 這個問題有沒有可能在更早的階段被發現？（code review / 測試 / 監控）
+- 是什麼流程缺口讓它到了線上才爆發？
+- 有沒有類似的風險可能存在於其他地方？
 
-使用者的回答整合到報告的「為什麼會這樣」section，作為技術根因之外的系統性補充。使用者若說「目前沒想到」，報告就只保留技術根因，不硬塞。
+使用者若說「目前沒想到」，報告就只保留技術根因，不硬塞。
 
-### 3. Action Items 審核（AI 提出初步建議，團隊定案）
+### 3. Action Items 審核
 
-> 以下是基於技術調查提出的初步建議（Proposed），請審核：
-> - 哪些建議要採用？哪些不適用或需要調整？
-> - Owner 是否正確？
-> - 需要建 Jira ticket 或其他 issue tracker ticket 嗎？如果有單號請提供。
-> - 有沒有要調整優先序或新增項目？
+- 哪些建議要採用？哪些不適用或需要調整？
+- 建議負責方是否正確？
+- 有 Jira 或 issue tracker 單號嗎？
+- 有沒有要調整優先序或新增項目？
 
-使用者確認後，將採用的項目從 Proposed 改為 Approved，並在表格補上 Jira 或對應 issue tracker 單號。未被採用的建議從報告中移除。
+採用的項目寫入行動清單（附上使用者提供的追蹤資訊），未採用的不放進報告。
 
 ---
 
@@ -406,9 +425,9 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 報告完成並通過自檢後，檢查是否有新知識需要更新 `context.local.md`：
 
 - 發現新的 error pattern 或 log 格式陷阱 → 新增到「Log 格式與操作知識」
-- 確認某個 error 是正常行為或已知雜訊 → 新增到對應觀測層的「已知行為模式」表格
+- 確認某個 error 是固定雜訊（本次掃描期間內每天穩定出現、量體無異常波動、不需人工關注）→ 新增到對應觀測層的「已知行為模式」表格，**含精確的排除條件**（filter pattern / status code / path 等），讓未來掃描在查詢層直接排除以節省 token 與查詢費用。排除條件不確定時問使用者確認
 - 發現已知行為已被修復 → 標記為 `[已修復 YYYY-MM]`
 - 發現 log group 名稱與 tech stack 不一致 → 記錄對應關係
 - 發現專案穩定規則（log schema、trace ID、報告欄位、issue tracker 慣例）→ 新增到對應章節
 
-若 `context.local.md` 不存在且調查過程中累積了足夠知識，主動提議建立。
+若 `context.local.md` 不存在，自動建立——依 Phase 0 Step 2 的章節結構寫入本次調查發現的內容。

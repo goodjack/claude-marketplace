@@ -29,16 +29,6 @@ log_formats:
     - "/app/myservice/web"
     - "/app/myservice/frontend"
 
-# ─── Quick Triage 設定（選填）─────────────────────────────────────────────────
-# Quick Triage 用固定 query set 快速檢查 error 概覽，預設從 log_formats 推算。
-# 若 log 格式的 group-by 欄位與內建預設（structlog event / pino namespace）不同，
-# 在這裡覆蓋。留空則用上方 log_formats 的第一/第二組 + 內建預設欄位。
-quick_triage:
-  # backend_log_group: "/app/myservice/api"     # 覆蓋 Quick Triage 的後端 log group
-  # frontend_log_group: "/app/myservice/web"    # 覆蓋 Quick Triage 的前端 log group
-  # backend_group_by: "event"                   # structlog 用 event；Winston 用 message
-  # frontend_group_by: "namespace"              # pino 用 namespace；其他框架視 log 結構調整
-
 # ─── 後端 Error 識別關鍵字 ────────────────────────────────────────────────────
 # Scan 1 第一層用這些關鍵字 filter 外部 API 呼叫失敗的 log。
 # 第二層用 unhandled_exception 關鍵字 filter 未捕獲 exception。

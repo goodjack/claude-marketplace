@@ -34,8 +34,8 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 
 常見誤判場景：
 - ALB access log 的 `client_ip` → 看到的是 CloudFront edge IP（如 3.172.x、15.158.x、64.252.x），不是用戶 IP
-- Regional WAF log 的 `httprequest.country` → 反映 CloudFront edge 所在國家（TW/JP/US/SG），不是用戶國家
-- 只有 **CloudFront access log**（`c-ip` 欄位）或 **Global WAF log**（`httprequest.clientIp`）才有真實用戶 IP
+- Regional WAF log 的 `httpRequest.country` → 反映 CloudFront edge 所在國家（TW/JP/US/SG），不是用戶國家
+- 只有 **CloudFront access log**（`c-ip` 欄位）或 **Global WAF log**（`httpRequest.clientIp`）才有真實用戶 IP
 
 判斷 ALB 是否在 CDN 後面的線索：
 - ALB log 的 top client_ip 集中在少數 AWS/Apple CIDR（3.172/15.158/64.252/130.176/18.68/52.46）
