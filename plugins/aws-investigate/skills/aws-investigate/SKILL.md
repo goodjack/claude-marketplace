@@ -136,7 +136,7 @@ fields @timestamp, @message
 
 **存在** → 讀取並記住內容。此檔案是 `config.local.yaml` 的補充——config 放結構化設定，這裡放 config 裝不下的自由格式知識：log schema、trace ID 格式、code path 注意事項、已知雜訊 pattern、歷史案例、report convention、issue tracker 慣例、已驗證陷阱等。在後續所有查詢和判讀中都需要參照。
 
-**不存在** → 提議先掃描 codebase 建立基礎版（需額外時間和 token）。告知使用者：「我可以掃描 codebase 建立 `context.local.md` 的基礎版，幫助後續調查更精準。要現在建立嗎？跳過也可以——調查後會根據發現自動建立。」
+**不存在** → 提議掃描 codebase 建立基礎版。告知使用者：「我可以掃描 codebase 建立 `context.local.md` 的基礎版，記錄 log 格式、已知雜訊等知識，幫助後續調查更精準。要建立嗎？」使用者拒絕則跳過，調查後維護階段會根據調查發現自動建立。
 
 同意後，用 Grep/Read 掃描以下項目：
 - Logging config（structlog / pino 設定）→ log 格式、欄位名
