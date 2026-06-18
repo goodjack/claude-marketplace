@@ -157,35 +157,4 @@ dependency 升版可能在不改應用程式碼的情況下改變底層行為。
 
 ---
 
-## 報告寫作風格
-
-報告的目的是讓讀者快速吸收和行動，不是展現調查的深度。以下原則適用於所有報告類型。
-
-### 表達形式優先序（基於 NNG 掃描閱讀研究 + Cognitive Load Theory）
-
-結構化格式降低 extraneous cognitive load（讀者花在解碼排版的認知資源），讓讀者專注於理解內容本身。
-
-1. **表格**——適合多屬性的結構化比較（根因分析、排除假設、Action Items、角色重點）
-2. **條列（bullet points）**——適合事件描述、觀察列舉（發生什麼事）
-3. **段落**——只用於需要上下文連貫的敘事（流程面根因等少數情境）
-
-### 語氣光譜（基於 Google / Microsoft Style Guide + Blameless Postmortem 文化）
-
-語氣定位為 **Knowledgeable Friend**（Google Style Guide）：像懂技術的同事在說明狀況，不僵硬也不輕挑。
-
-| 太正式 ❌ | 太口語 ❌ | 目標 ✅ |
-| --- | --- | --- |
-| 「使用者面向影響有限」 | 「平常使用無感」 | 「一般使用者不會感覺到異常」 |
-| 「緊急處置手動清除所有 session 後」 | 「清掉所有 session」 | 「清除 Redis 後」 |
-| 「流程面根因」 | 「為啥沒早點抓到」 | 「為什麼沒有更早發現」 |
-| 「該因素之影響」 | 「它幹了什麼」 | 「影響」 |
-
-### 精簡校準
-
-- **Orwell's Third Rule**（「If it is possible to cut a word out, always cut it out」）：每句話都要有存在的理由
-- **Einstein Principle**（「As simple as possible, but not simpler」→ 寫作版：As concise as possible, but as wordy as necessary）：如果多幾個字能避免讀者猜測，那幾個字不是贅字
-- **DRY（Don't Repeat Yourself）**：同一個 fact 只出現在一個 section。事件時序裡寫過的事實，不在其他 section 重述
-
-### 模板彈性（Flexible Template）
-
-- **「Only Include Relevant」**（Google SRE 精神）：模板是鷹架而非監獄。若某個 section（例如「各角色重點」或「排除的假設」）對這次事件不適用，請直接省略該區塊，**不要**填入「無」或湊字數。
+報告寫作風格原則（語氣、表達形式、精簡、模板彈性等）見 `report-guidelines.md`「寫作風格」。

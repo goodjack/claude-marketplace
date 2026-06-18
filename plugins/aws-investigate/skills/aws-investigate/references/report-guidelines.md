@@ -31,8 +31,8 @@
 
 - 每個數據點附查詢來源編號（`[Q1]`、`[ALB-Q1]` 等），讓讀者能自行驗證（詳見 `analysis-principles.md`「數據點附查詢來源」）
 - 查詢來源編號只出現在技術細節區塊內（`<details>` 或底部技術章節）和證據/來源欄位中，敘事主文不放——會議投影時這些編號對多數讀者是雜訊
-- 不同觀測層的數據標明來源：後端 application log ≠ CDN access log ≠ ALB access log，不混在同一行
-- 語言精準：資料有混合結果時用限定語，不用絕對語句（詳見 `analysis-principles.md`「語言精準」）
+- 不同觀測層的數據標明來源：後端 application log ≠ CDN access log ≠ ALB access log，不混在同一行（見 `analysis-principles.md`「觀測層區分」）
+- 語言精準：資料有混合結果時用限定語，不用絕對語句（見 `analysis-principles.md`「語言精準」）
 - 敏感資訊（token、secret）已遮蔽
 
 ### 寫作風格
@@ -49,6 +49,29 @@
 | 態度 | Blameless：焦點放在系統和流程，不放在個人。「How did the system allow this?」 | 批評個人或團隊，使用輕挑或嘲諷語氣 |
 | 重複 | DRY（Don't Repeat Yourself）：同一個 fact 只出現在一個 section | 同一件事在多個 section 用不同措辭重述 |
 | 未決策事項 | 只放「事實」和「已決定的事」。Action Items 是 AI 基於調查的初步建議（Proposed），明確標示需團隊討論確認 | 把建議寫成定案（如「高優先本週完成」），或替團隊做決策 |
+
+**語氣光譜**（基於 Google / Microsoft Style Guide + Blameless Postmortem 文化）：
+
+| 太正式 ❌ | 太口語 ❌ | 目標 ✅ |
+| --- | --- | --- |
+| 「使用者面向影響有限」 | 「平常使用無感」 | 「一般使用者不會感覺到異常」 |
+| 「緊急處置手動清除所有 session 後」 | 「清掉所有 session」 | 「清除 Redis 後」 |
+| 「流程面根因」 | 「為啥沒早點抓到」 | 「為什麼沒有更早發現」 |
+| 「該因素之影響」 | 「它幹了什麼」 | 「影響」 |
+
+**表達形式優先序**（基於 NNG 掃描閱讀研究 + Cognitive Load Theory）——結構化格式降低 extraneous cognitive load（讀者花在解碼排版的認知資源），讓讀者專注於理解內容本身：
+
+1. **表格**——適合多屬性的結構化比較（根因分析、排除假設、Action Items、角色重點）
+2. **條列（bullet points）**——適合事件描述、觀察列舉（發生什麼事）
+3. **段落**——只用於需要上下文連貫的敘事（流程面根因等少數情境）
+
+**精簡校準：**
+
+- **Orwell's Third Rule**（「If it is possible to cut a word out, always cut it out」）：每句話都要有存在的理由
+- **Einstein Principle**（「As simple as possible, but not simpler」→ 寫作版：As concise as possible, but as wordy as necessary）：如果多幾個字能避免讀者猜測，那幾個字不是贅字
+- **DRY（Don't Repeat Yourself）**：同一個 fact 只出現在一個 section。事件時序裡寫過的事實，不在其他 section 重述
+
+**模板彈性（Flexible Template）**——**「Only Include Relevant」**（Google SRE 精神）：模板是鷹架而非監獄。若某個 section（例如「各角色重點」或「排除的假設」）對這次事件不適用，請直接省略該區塊，**不要**填入「無」或湊字數。
 
 ### 標題與 Emoji 慣例
 
