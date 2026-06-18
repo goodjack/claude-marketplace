@@ -162,7 +162,7 @@ fields @timestamp, event, exc_info, logger, lineno
 ```
 fields @timestamp, event, exc_info, logger
 | filter level = "error"
-| filter event like "Exception in ASGI"
+| filter event like "{config.backend_error_keywords.unhandled_exception}"
 | filter @message like "{uuid_or_keyword}"
 | limit 5
 ```

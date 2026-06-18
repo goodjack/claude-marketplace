@@ -7,6 +7,9 @@ allowed-tools:
   - Bash(aws *)
   - Bash(python3 *)
   - Bash(nslookup *)
+  - Bash(curl *)
+  - Bash(gunzip *)
+  - Bash(tail *)
   - Bash(git log *)
   - Bash(git diff *)
   - Read
@@ -83,7 +86,7 @@ AWS Profile: {profile}
 | Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
 | Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
 | T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
-| 產出報告 | 全部摘要 | **主對話 Opus** | `reports/` 檔案 |
+| 產出報告 | 全部摘要 | **主對話 Opus** | `{config.report_dir}/` 檔案 |
 
 ### 取樣查詢的 token 節約
 
@@ -187,7 +190,8 @@ fields @timestamp, @message
    - 相關 codebase repo 路徑：「其他相關的 codebase repo 路徑？（調查中追蹤呼叫鏈常需跨 repo 看程式碼）」選項：自訂輸入。若只有當前 repo，選「只有當前 repo」。答案寫入 config 的 `related_repos` key。
 
 7. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
-8. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
+8. **確保報告產出被 gitignore**：檢查 `{config.report_dir}/.gitignore` 是否存在。若不存在，建立內容為 `*` 和 `!.gitignore` 兩行，整個子目錄的產出都不進 git。
+9. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
@@ -267,7 +271,7 @@ aws logs describe-log-groups \
 
 #### Step 0：掃描參數確認
 
-從使用者自然語言擷取掃描區間，未指定則預設 7 天。同時偵測 `reports/` 目錄中是否有該區間內的定期掃描報告。
+從使用者自然語言擷取掃描區間，未指定則預設 7 天。同時偵測 `{config.report_dir}/` 目錄中是否有該區間內的定期掃描報告。
 
 用 **一次 AskUserQuestion** 列出建議值讓使用者確認或調整：
 - **掃描區間**：建議值 = 使用者指定或預設 7 天
@@ -311,10 +315,10 @@ aws logs describe-log-groups \
 > 以上是 error 概覽。要怎麼處理？
 > - **繼續完整掃描**（Scan 1-5 + 調查，需載入 references）
 > - **只追查特定項目**（指定後進入調查工具箱）
-> - **存成簡易報告後結束**（把摘要寫成 `reports/` 檔案留紀錄，方便日後比較）
+> - **存成簡易報告後結束**（把摘要寫成 `{config.report_dir}/` 檔案留紀錄，方便日後比較）
 > - **到這裡就夠了**（不存檔，對話摘要即產出）
 
-選擇「存成簡易報告」時，將 Quick Triage 摘要（error 分布表 + 每日趨勢 + 已知模式比對結果）寫入 `reports/YYYY-MM-DDTHHMM-triage.md`，不需要載入 `references/report-template.md`，格式從簡。
+選擇「存成簡易報告」時，將 Quick Triage 摘要（error 分布表 + 每日趨勢 + 已知模式比對結果）寫入 `{config.report_dir}/YYYY-MM-DDTHHMM-triage.md`，不需要載入 `references/report-template.md`，格式從簡。
 
 **自動跳過 checkpoint 的條件**：快捷入口參數為 `scan`、`weekly` 或 `report` 時，自動選擇「繼續完整掃描」。
 
@@ -396,8 +400,8 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 - [ ] 每個數據聲明可追溯到查詢來源（`[Qn]` 標記位置規則見 `report-guidelines.md`「數據與來源」）
 - [ ] 行動清單每行 6 欄位齊全（欄位定義見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
 - [ ] 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現
-- [ ] 報告路徑正確：`reports/YYYY-MM-DDTHHMM.md`
-- [ ] 涉及基礎設施指標異常的 🔴 高/🟡 中 附 CloudWatch 圖表（PNG），存放於 `reports/assets/{basename}/`
+- [ ] 報告路徑正確：`{config.report_dir}/YYYY-MM-DDTHHMM.md`
+- [ ] 涉及基礎設施指標異常的 🔴 高/🟡 中 附 CloudWatch 圖表（PNG），存放於 `{config.report_dir}/assets/{basename}/`
 
 ### Pass 2：正確性
 - [ ] 🔴 高/🟡 中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）

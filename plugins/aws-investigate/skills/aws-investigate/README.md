@@ -60,7 +60,7 @@ cd claude-marketplace
 1. **AWS profiles** — production/staging 使用哪些 CLI profile
 2. **Log group prefix** — CloudWatch log group 探索用的預設前綴
 3. **Log 格式對應** — 哪些 log group 使用 Python structlog、哪些用 Nuxt SSR
-4. **Athena 設定** — workgroup、S3 output、ALB table 名稱（選填）
+4. **Athena 設定** — workgroup、ALB table 名稱（選填）
 5. **Redis key prefix** — Redis memory 調查用的 key 前綴（選填）
 6. **時區** — 報告時間顯示
 

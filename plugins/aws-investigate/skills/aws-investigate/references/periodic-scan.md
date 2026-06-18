@@ -73,16 +73,14 @@ fields @timestamp, event
 ```
 fields @timestamp, event
 | filter level = "error"
-| filter event like "Exception in ASGI"
+| filter event like "{config.backend_error_keywords.unhandled_exception}"
 | parse event /(?<error_type>\w+Error)/
 | stats count() as cnt by error_type
 | sort cnt desc
 | limit 30
 ```
 
-> `Exception in ASGI application` 是 uvicorn 在未捕獲 exception 時印出的通用訊息。
-
-**其他框架**：替換 filter 條件為你的框架對應的未處理 exception 關鍵字，並依實際 log 格式調整 parse 規則。可用 Step 0 的探索查詢找出你的框架在未捕獲 exception 時印出什麼。
+> 預設關鍵字 `Exception in ASGI application` 是 uvicorn 在未捕獲 exception 時印出的通用訊息。其他框架請在 `config.local.yaml` 的 `backend_error_keywords.unhandled_exception` 填入對應關鍵字，或用 Step 0 的探索查詢找出。
 
 > **注意**：若 logger 使用 Python repr 格式記錄 dict，key 和 value 會用**單引號**（`'path': '/api/...'`），parse 時注意引號格式。
 
@@ -270,7 +268,6 @@ LIMIT 100
 aws athena start-query-execution \
   --query-string "{SQL}" \
   --work-group "{workgroup}" \
-  --result-configuration "OutputLocation={s3_output}" \
   --profile {profile} --output json
 # → 取得 QueryExecutionId
 
@@ -285,7 +282,7 @@ aws athena get-query-results \
   --profile {profile} --output json
 ```
 
-> **時間格式**：`from_iso8601_timestamp()` 接受 ISO 8601 字串。預設時區是台灣時間（UTC+8），需減 8 小時換算為 UTC，例如台灣 2026-04-20 00:00 → `'2026-04-19T16:00:00Z'`。
+> **時間格式**：`from_iso8601_timestamp()` 接受 ISO 8601 字串。使用者時區為 `{config.timezone.label}`（UTC+{config.timezone.offset_hours}），需換算為 UTC。例如 UTC+8 的 2026-04-20 00:00 → `'2026-04-19T16:00:00Z'`。
 
 **ALB 關鍵欄位解讀：**
 

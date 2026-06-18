@@ -2,9 +2,9 @@
 
 撰寫原則、設計理念、風格指引見 `report-guidelines.md`。本檔案只定義輸出結構。
 
-輸出路徑：`reports/YYYY-MM-DDTHHMM.md`
+輸出路徑：`{config.report_dir}/YYYY-MM-DDTHHMM.md`
 
-圖表路徑：`reports/assets/YYYY-MM-DDTHHMM/`（產圖方式見 `metrics-charts.md`）
+圖表路徑：`{config.report_dir}/assets/YYYY-MM-DDTHHMM/`（產圖方式見 `metrics-charts.md`）
 
 版本標示：標題下方標注 plugin 版本和模型名稱。版本從 `${CLAUDE_SKILL_DIR}/../../.claude-plugin/plugin.json` 的 `version` 欄位讀取。
 
@@ -142,7 +142,7 @@
 
 > aws-investigate v{plugin.version} · {model name}
 
-> **異常時段**：{起} ~ {迄} TWN
+> **異常時段**：{起} ~ {迄} {config.timezone.label}
 > **影響**：{一句話描述影響範圍}
 > **處置**：{已完成的緊急處置}
 >

@@ -121,9 +121,9 @@ import time
 # 最近 7 天
 start = int(time.time() - 7 * 24 * 3600)
 end = int(time.time())
-# 特定時段（預設：台灣時間 UTC+8）
+# 特定時段（依 config.timezone.offset_hours 換算）
 from datetime import datetime, timezone, timedelta
-tz = timezone(timedelta(hours=8))
+tz = timezone(timedelta(hours={config.timezone.offset_hours}))
 start = int(datetime(2026, 4, 16, 0, 10, 0, tzinfo=tz).timestamp())
 end   = int(datetime(2026, 4, 16, 0, 11, 0, tzinfo=tz).timestamp())
 ```
