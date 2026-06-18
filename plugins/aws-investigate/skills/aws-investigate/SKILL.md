@@ -77,12 +77,12 @@ AWS Profile: {profile}
 
 | 階段 | 輸入 | 執行方式 | 輸出 |
 | --- | --- | --- | --- |
-| **Quick Triage** | 固定 query set + context.local.md | **Haiku** subagent（1 支，3 條 query） | 錯誤分布概覽 + 已知模式比對 |
+| **Quick Triage** | 固定 query set + context.local.md | **Haiku** subagent（1 支，query set 見 Step 1） | 錯誤分布概覽 + 已知模式比對 |
 | **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
 | Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
 | Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
-| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴高/🟡中/⚪低 分級清單 |
-| T1-T4 深入調查 | 🔴高/🟡中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
+| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
+| T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
 | 產出報告 | 全部摘要 | **主對話 Opus** | `reports/` 檔案 |
 
 ### 取樣查詢的 token 節約
@@ -136,7 +136,7 @@ fields @timestamp, @message
 
 **存在** → 讀取並記住內容。此檔案是 `config.local.yaml` 的補充——config 放結構化設定，這裡放 config 裝不下的自由格式知識：log schema、trace ID 格式、code path 注意事項、已知雜訊 pattern、歷史案例、report convention、issue tracker 慣例、已驗證陷阱等。在後續所有查詢和判讀中都需要參照。
 
-**不存在** → 提議建立基礎版（opt-in）。告知使用者：「我可以掃描 codebase 建立 `context.local.md` 的基礎版，幫助後續調查更精準。要建立嗎？」
+**不存在** → 提議先掃描 codebase 建立基礎版（需額外時間和 token）。告知使用者：「我可以掃描 codebase 建立 `context.local.md` 的基礎版，幫助後續調查更精準。要現在建立嗎？跳過也可以——調查後會根據發現自動建立。」
 
 同意後，用 Grep/Read 掃描以下項目：
 - Logging config（structlog / pino 設定）→ log 格式、欄位名
@@ -326,7 +326,7 @@ aws logs describe-log-groups \
 
 **Quick Triage 的結果直接作為 Scan 1 Step 0 的輸出**——從 Scan 1 第一層（外部 API 呼叫失敗）開始，跳過 Step 0 探索查詢，避免重複。
 
-完成 Scan 5 篩選後，對 🔴高/🟡中 問題：
+完成 Scan 5 篩選後，對 🔴 高/🟡 中 問題：
 3. `references/investigation-toolkit.md` — T1-T4 調查工具箱
 
 產出報告時：
@@ -392,15 +392,15 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 ## 報告自檢（報告完成後、提交使用者前執行）
 
 ### Pass 1：完整性
-- [ ] 每個 🔴高/🟡中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
-- [ ] 每個數據聲明附 `[Qn]` 來源編號（規則見 `analysis-principles.md`「數據點附查詢來源」）
-- [ ] 行動清單每行 6 欄位齊全（格式見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
+- [ ] 每個 🔴 高/🟡 中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
+- [ ] 每個數據聲明可追溯到查詢來源（`[Qn]` 標記位置規則見 `report-guidelines.md`「數據與來源」）
+- [ ] 行動清單每行 6 欄位齊全（欄位定義見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
 - [ ] 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現
 - [ ] 報告路徑正確：`reports/YYYY-MM-DDTHHMM.md`
-- [ ] 涉及基礎設施指標異常的 🔴高/🟡中 附 CloudWatch 圖表（PNG），存放於 `reports/assets/{basename}/`
+- [ ] 涉及基礎設施指標異常的 🔴 高/🟡 中 附 CloudWatch 圖表（PNG），存放於 `reports/assets/{basename}/`
 
 ### Pass 2：正確性
-- [ ] 🔴高/🟡中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）
+- [ ] 🔴 高/🟡 中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）
 - [ ] 「扣除雜訊後」的數字計算邏輯正確（去重、排除爬蟲）
 - [ ] ASCII flow 中的系統元件名稱與實際 log group 一致
 - [ ] 敏感資訊（token、secret、client_secret）已遮蔽
