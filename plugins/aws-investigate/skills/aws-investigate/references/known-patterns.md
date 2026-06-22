@@ -60,6 +60,23 @@
 
 ---
 
+## 流量 Spike 判讀（通用）
+
+> Spike 分析方法論（reqs/IP ratio 計算方式、判讀邏輯、操作流程）見 `analysis-principles.md` 的「流量 Spike 分析方法」章節。
+
+以下為常見模式的快速辨識與下一步：
+
+| 模式 | 辨識特徵 | 下一步 |
+| --- | --- | --- |
+| 正常尖峰 | reqs/IP ratio 不變、打一般頁面端點、ECS/ALB 指標正常 | 確認 auto-scaling 正確觸發即可 |
+| 少數 IP 集中轟 | reqs/IP ratio 暴增（如 2x+）、unique IPs 反而減少 | 取 top IPs → geolocation → 看 UA 和 path pattern |
+| Bot/crawler burst | 大量 unique URLs + 301/403 status + 固定 IP 段 | 確認是否造成 session 汙染（Redis CurrItems）或 CPU 壓力 |
+| CDN 背後辨識困難 | ALB client_ip 全是 CDN edge IP、無法直接看來源國家 | 改查 CloudFront access log 或 Global WAF log 取真實 IP |
+
+> **常見誤判**：PM/GA 回報「某國 IP 暴增」但 ALB/WAF 層看不到——通常是因為 ALB 在 CDN 後面。見 `analysis-principles.md` 陷阱 3。
+
+---
+
 ## 相依性升版行為變化（通用）
 
 | 訊號 | 模式 | 範例 |

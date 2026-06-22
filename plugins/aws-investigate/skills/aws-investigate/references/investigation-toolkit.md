@@ -162,7 +162,7 @@ fields @timestamp, event, exc_info, logger, lineno
 ```
 fields @timestamp, event, exc_info, logger
 | filter level = "error"
-| filter event like "Exception in ASGI"
+| filter event like "{config.backend_error_keywords.unhandled_exception}"
 | filter @message like "{uuid_or_keyword}"
 | limit 5
 ```
@@ -224,6 +224,7 @@ print(json.dumps(d, indent=2, ensure_ascii=False))
 2. Read 讀取對應檔案，確認錯誤路徑
 3. 追蹤呼叫鏈（前端 route → service → 後端 API → 下游服務）
 4. 確認 503 / NoneType 等防禦性缺陷的位置
+5. 若追查到觸發點不在當前 codebase（如 topic/channel 建立在前端、排程在另一服務），主動詢問使用者相關 repo 位置或探索 `config.local.yaml` 中的 `related_repos`
 
 ---
 

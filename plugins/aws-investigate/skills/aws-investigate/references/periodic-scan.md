@@ -2,7 +2,7 @@
 
 適用時機：統整一段時間（如一週）的 error 全貌，找出需要修復的系統性問題。
 
-**完整流程：Scan 1-4 彙總 → Scan 5 篩選 → 對 P1/P2 問題執行調查工具箱 → 產出報告。**
+**完整流程：Scan 1-4 彙總 → Scan 5 篩選 → 對 🔴 高/🟡 中 問題執行調查工具箱 → 產出報告。**
 
 ---
 
@@ -73,16 +73,14 @@ fields @timestamp, event
 ```
 fields @timestamp, event
 | filter level = "error"
-| filter event like "Exception in ASGI"
+| filter event like "{config.backend_error_keywords.unhandled_exception}"
 | parse event /(?<error_type>\w+Error)/
 | stats count() as cnt by error_type
 | sort cnt desc
 | limit 30
 ```
 
-> `Exception in ASGI application` 是 uvicorn 在未捕獲 exception 時印出的通用訊息。
-
-**其他框架**：替換 filter 條件為你的框架對應的未處理 exception 關鍵字，並依實際 log 格式調整 parse 規則。可用 Step 0 的探索查詢找出你的框架在未捕獲 exception 時印出什麼。
+> 預設關鍵字 `Exception in ASGI application` 是 uvicorn 在未捕獲 exception 時印出的通用訊息。其他框架請在 `config.local.yaml` 的 `backend_error_keywords.unhandled_exception` 填入對應關鍵字，或用 Step 0 的探索查詢找出。
 
 > **注意**：若 logger 使用 Python repr 格式記錄 dict，key 和 value 會用**單引號**（`'path': '/api/...'`），parse 時注意引號格式。
 
@@ -214,10 +212,9 @@ fields @timestamp, event
 
 CloudWatch 只有應用層 log；**ALB 層的異常**（container crash、gateway timeout、非預期狀態碼）需查 Athena。
 
-從 `{config.athena}` 讀取。若未設定，用 AskUserQuestion 蒐集：
+從 `{config.athena}` 讀取（需要 `workgroup` 和 `tables`）。若未設定，用 AskUserQuestion 蒐集：
 1. Athena workgroup 名稱
-2. S3 output 路徑
-3. 列出可用 ALB table，讓使用者選擇（checkbox）：
+2. 列出可用 ALB table，讓使用者選擇（checkbox）：
 
 ```sql
 SHOW TABLES IN aws
@@ -271,7 +268,6 @@ LIMIT 100
 aws athena start-query-execution \
   --query-string "{SQL}" \
   --work-group "{workgroup}" \
-  --result-configuration "OutputLocation={s3_output}" \
   --profile {profile} --output json
 # → 取得 QueryExecutionId
 
@@ -286,7 +282,7 @@ aws athena get-query-results \
   --profile {profile} --output json
 ```
 
-> **時間格式**：`from_iso8601_timestamp()` 接受 ISO 8601 字串。預設時區是台灣時間（UTC+8），需減 8 小時換算為 UTC，例如台灣 2026-04-20 00:00 → `'2026-04-19T16:00:00Z'`。
+> **時間格式**：`from_iso8601_timestamp()` 接受 ISO 8601 字串。使用者時區為 `{config.timezone.label}`（UTC+{config.timezone.offset_hours}），需換算為 UTC。例如 UTC+8 的 2026-04-20 00:00 → `'2026-04-19T16:00:00Z'`。
 
 **ALB 關鍵欄位解讀：**
 
@@ -305,23 +301,23 @@ aws athena get-query-results \
 
 綜合 Scan 1-4 的彙總結果，依以下標準篩選需要深入分析的問題：
 
-**自動升級為 P1（必須深入）：**
+**🔴 高（必須深入）：**
 - 5xx 連鎖反應（一個服務 503 導致下游多個 endpoint 500）
 - `target_status_code = '-'`（container crash）
 - 新出現的 error pattern（過去報告中未見過）
 - 有使用者可見影響（前端 500、頁面空白、功能失效）
 
-**自動升級為 P2（應該深入）：**
+**🟡 中（應該深入）：**
 - 彙總 count 前三名的 error 類型
 - `target_processing_time > 10s` 的慢請求
 - 前後端同時出現的相關錯誤（同一功能的前端 5xx + 後端 error）
 
-**P3（記錄但不深入）：**
+**⚪ 低（記錄但不深入）：**
 - 已知雜訊（爬蟲、掃描流量，見 Scan 3）
 - 已在 `references/known-patterns.md` 或 `context.local.md`（若存在）中標記為「正常行為」的項目
 - 數量穩定且無增長趨勢的既有 error
 
-**對每個 P1/P2 問題，執行調查工具箱（`references/investigation-toolkit.md`）取得：**
+**對每個 🔴 高/🟡 中 問題，執行調查工具箱（`references/investigation-toolkit.md`）取得：**
 - 具體的 trace 時序（T2）
 - 完整的 exception 內容（T3）
 - 程式碼位置與 root cause（T4）

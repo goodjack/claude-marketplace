@@ -38,13 +38,13 @@ backend_error_keywords:
   unhandled_exception: "Exception in ASGI"  # ASGI 通用（FastAPI / Starlette）；其他框架填入對應的未捕獲 exception 關鍵字
 
 # ─── Athena（ALB Log 分析）────────────────────────────────────────────────────
-# Scan 4（ALB 查詢）需要。若不使用 Athena 可留空。
+# Scan 4（ALB 查詢）需要。若不使用 Athena 可留空或省略。
+# output location 由 workgroup 設定決定，不需要在此指定。
 athena:
   workgroup: "my-athena-workgroup"
-  output_location: "s3://my-bucket/athena-results/"
-  default_tables:
-    backend_alb: "aws.alb_logs_backend"      # backend ALB table
-    frontend_alb: "aws.alb_logs_frontend"     # 對外 ALB table
+  tables:
+    - "alb_logs_backend"
+    - "alb_logs_frontend"
 
 # ─── Redis Key Prefix ────────────────────────────────────────────────────────
 # T5（Redis Memory 調查）時用來 scan key pattern。
@@ -56,9 +56,18 @@ redis_key_prefixes:
   # auth_cache: "myapp:auth"
 
 # ─── 報告輸出 ─────────────────────────────────────────────────────────────────
-report_dir: "reports"
+report_dir: "reports/aws-investigate"
+
+# ─── 相關 Codebase Repo ──────────────────────────────────────────────────────
+# 調查中追蹤呼叫鏈時，可能需要跨 repo 查看程式碼。
+# 列出相關 repo 的本地路徑，讓 skill 在 T4 程式碼追查時能自動搜尋。
+# 若只有當前 repo，可留空或省略此設定。
+related_repos:
+  - "~/GitRepos/my-backend-api"
+  - "~/GitRepos/my-frontend-web"
 
 # ─── 時區 ─────────────────────────────────────────────────────────────────────
 # 報告中的時間顯示和計算使用。
-timezone_offset: 8          # UTC 偏移小時數（如 8 代表 UTC+8）
-timezone_name: "TWN"        # 報告中使用的時區簡稱
+timezone:
+  offset_hours: 8           # UTC 偏移小時數（如 8 代表 UTC+8，-5 代表 UTC-5）
+  label: "TWN"              # 報告中使用的時區簡稱

@@ -18,12 +18,12 @@ aws cloudwatch get-metric-widget-image \
 
 | 項目 | 規則 |
 |------|------|
-| 存放目錄 | `reports/assets/{report-basename}/`（與報告檔名對應） |
+| 存放目錄 | `{config.report_dir}/assets/{report-basename}/`（與報告檔名對應） |
 | 檔名 | `{service}-{metric}.png`，如 `redis-curritems.png`、`ecs-cpu.png` |
 | Markdown 引用 | `![描述](assets/{report-basename}/{filename})` |
 | 圖片尺寸 | `width: 800, height: 400` |
 
-範例：報告 `reports/2026-05-07T1500.md` → 圖表存在 `reports/assets/2026-05-07T1500/`：
+範例：報告 `{config.report_dir}/2026-05-07T1500.md` → 圖表存在 `{config.report_dir}/assets/2026-05-07T1500/`：
 
 ```markdown
 ![Redis CurrItems 趨勢](assets/2026-05-07T1500/redis-curritems.png)

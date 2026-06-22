@@ -30,7 +30,21 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 
 > **提醒**：檢查你的 codebase 中 API caller 的實作。某些框架在 finally/middleware 中記錄請求 duration，會在 response 狀態碼被評估前就執行。不確定時，記下這個發現供未來調查參考。
 
-**陷阱 3：第三方回報「N bytes received」→ 判斷 timeout 位置**
+**陷阱 3：ALB 在 CloudFront 後面時，client_ip 和 WAF country 都不是真實用戶資訊**
+
+常見誤判場景：
+- ALB access log 的 `client_ip` → 看到的是 CloudFront edge IP（如 3.172.x、15.158.x、64.252.x），不是用戶 IP
+- Regional WAF log 的 `httpRequest.country` → 反映 CloudFront edge 所在國家（TW/JP/US/SG），不是用戶國家
+- 只有 **CloudFront access log**（`c-ip` 欄位）或 **Global WAF log**（`httpRequest.clientIp`）才有真實用戶 IP
+
+判斷 ALB 是否在 CDN 後面的線索：
+- ALB log 的 top client_ip 集中在少數 AWS/Apple CIDR（3.172/15.158/64.252/130.176/18.68/52.46）
+- `actions_executed` 含 `waf,forward`
+- 多個不同 domain 流量打同一個 ALB
+
+解法：見 `aws-tools.md` 的「CloudFront Access Logs」章節。
+
+**陷阱 4：第三方回報「N bytes received」→ 判斷 timeout 位置**
 
 當第三方（如 OIDC provider）回報 timeout 並附上 `N bytes received`，可以推算服務端在 HTTP response 傳送的哪個階段被截斷：
 
@@ -54,6 +68,31 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 1. CloudWatch log 缺失時，用 ALB 確認整個 endpoint 有無完成
 2. 懷疑某個 webhook / 長時間 API 有沒有在 timeout 前完成
 3. 驗證 `asyncio.gather()` 等平行操作是否全部完成
+
+---
+
+## 流量 Spike 分析方法
+
+當調查「流量突然增加」或「特定國家 IP 暴增」時，比較 spike 和 normal 時段的**集中度**比單純看國家/IP 分布更有意義：
+
+| 指標 | 計算方式 | 意義 |
+| --- | --- | --- |
+| **Requests/IP ratio** | total_requests ÷ unique_IPs | 集中度——數字越高代表越少 IP 打越多 request |
+| Country 佔比變化 | spike 期間 vs 正常期間的國家比例 | 是「新來源出現」還是「既有流量放大」 |
+| Unique IPs 數量 | 兩個時段的獨立 IP 數比較 | 新 IP 暴增 = 真正的新流量；IP 減少但 reqs 增加 = 密集請求 |
+
+**判讀邏輯：**
+
+| Spike 特徵 | reqs/IP ratio | unique IPs | 可能原因 |
+| --- | --- | --- | --- |
+| 新流量湧入 | 不變 | 暴增 | 行銷活動、社群分享、搜尋引擎索引 |
+| 少數 IP 密集請求 | 暴增 | 減少或不變 | Bot/scraper、aggressive polling、API abuse |
+| 整體放大 | 不變 | 微增 | 正常尖峰（如午休時段）、活動頁面效應 |
+
+**操作流程（用 CF log 或 ALB log）：**
+1. 用 `awk + sort + uniq -c` 算出 spike 和 normal 各自的 reqs/IP ratio
+2. 若 ratio 異常高：取 top IPs → `ipinfo.io` batch 確認來源
+3. 比較兩時段的 top paths 分布——是否打相同端點（正常瀏覽）或特定路徑（爬蟲/攻擊）
 
 ---
 
@@ -118,35 +157,4 @@ dependency 升版可能在不改應用程式碼的情況下改變底層行為。
 
 ---
 
-## 報告寫作風格
-
-報告的目的是讓讀者快速吸收和行動，不是展現調查的深度。以下原則適用於所有報告類型。
-
-### 表達形式優先序（基於 NNG 掃描閱讀研究 + Cognitive Load Theory）
-
-結構化格式降低 extraneous cognitive load（讀者花在解碼排版的認知資源），讓讀者專注於理解內容本身。
-
-1. **表格**——適合多屬性的結構化比較（根因分析、排除假設、Action Items、角色重點）
-2. **條列（bullet points）**——適合事件描述、觀察列舉（發生什麼事）
-3. **段落**——只用於需要上下文連貫的敘事（流程面根因等少數情境）
-
-### 語氣光譜（基於 Google / Microsoft Style Guide + Blameless Postmortem 文化）
-
-語氣定位為 **Knowledgeable Friend**（Google Style Guide）：像懂技術的同事在說明狀況，不僵硬也不輕挑。
-
-| 太正式 ❌ | 太口語 ❌ | 目標 ✅ |
-| --- | --- | --- |
-| 「使用者面向影響有限」 | 「平常使用無感」 | 「一般使用者不會感覺到異常」 |
-| 「緊急處置手動清除所有 session 後」 | 「清掉所有 session」 | 「清除 Redis 後」 |
-| 「流程面根因」 | 「為啥沒早點抓到」 | 「為什麼沒有更早發現」 |
-| 「該因素之影響」 | 「它幹了什麼」 | 「影響」 |
-
-### 精簡校準
-
-- **Orwell's Third Rule**（「If it is possible to cut a word out, always cut it out」）：每句話都要有存在的理由
-- **Einstein Principle**（「As simple as possible, but not simpler」→ 寫作版：As concise as possible, but as wordy as necessary）：如果多幾個字能避免讀者猜測，那幾個字不是贅字
-- **DRY（Don't Repeat Yourself）**：同一個 fact 只出現在一個 section。事件時序裡寫過的事實，不在其他 section 重述
-
-### 模板彈性（Flexible Template）
-
-- **「Only Include Relevant」**（Google SRE 精神）：模板是鷹架而非監獄。若某個 section（例如「各角色重點」或「排除的假設」）對這次事件不適用，請直接省略該區塊，**不要**填入「無」或湊字數。
+報告寫作風格原則（語氣、表達形式、精簡、模板彈性等）見 `report-guidelines.md`「寫作風格」。
