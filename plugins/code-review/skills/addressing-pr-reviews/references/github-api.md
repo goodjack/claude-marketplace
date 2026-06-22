@@ -34,10 +34,10 @@ query($owner: String!, $repo: String!, $pr: Int!) {
       }
     }
   }
-}' -F owner='{owner}' -F repo='{repo}' -F pr={pr}
+}' -f owner='{owner}' -f repo='{repo}' -F pr={pr}
 ```
 
-- 只看未解決：jq `.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)`
+- 只看未解決：加 `--jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)'` 到 `gh api graphql` 指令尾端
 - threads 超過 50 個時用 `pageInfo.endCursor` 翻頁（`reviewThreads(first: 50, after: $cursor)`）
 - `isOutdated == true` 表示留言對應的程式碼行已被後續 commit 改掉，查證時要看最新程式碼而非留言當下的 diff
 
@@ -51,7 +51,7 @@ mutation($threadId: ID!, $body: String!) {
   addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $threadId, body: $body}) {
     comment { url }
   }
-}' -F threadId='{threadId}' -f body='回覆內容，支援 Markdown'
+}' -f threadId='{threadId}' -f body='回覆內容，支援 Markdown'
 ```
 
 REST 備援（`{comment_id}` 必須是 thread 第一則留言的 databaseId，對回覆留言的 id 會 404）：
@@ -86,12 +86,12 @@ mutation($threadId: ID!) {
   resolveReviewThread(input: {threadId: $threadId}) {
     thread { id isResolved }
   }
-}' -F threadId='{threadId}'
+}' -f threadId='{threadId}'
 ```
 
 誤按可還原：把 `resolveReviewThread` 換成 `unresolveReviewThread` 即可。
 
-權限：需要 repo Contents 的 Read and Write（一般 collaborator 即有）。
+權限：Classic PAT 需要 `repo` scope；Fine-grained PAT 需要 Pull requests: Read and write。
 
 ## PR 基本資訊與 diff（查證用）
 

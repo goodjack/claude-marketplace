@@ -21,6 +21,9 @@ allowed-tools:
   - LSP
   - Bash(git *)
   - Bash(gh *)
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
   - AskUserQuestion
 ---
 
@@ -31,6 +34,19 @@ allowed-tools:
 
 前提：`gh` CLI 已登入且對目標 repo 有寫入權限。
 所有 API 指令模板見 [references/github-api.md](references/github-api.md)。
+
+## 進度追蹤
+
+使用 TaskCreate 為每個 Step 建立任務，執行時以 TaskUpdate 更新狀態（in_progress → completed）。
+任務清單：
+1. 「確認 PR」
+2. 「盤點 threads」
+3. 「查證宣稱」
+4. 「分類」
+5. 「初步回覆」
+6. 「修正 push」
+7. 「完成回覆 + resolve」
+8. 「收尾回報」
 
 ## Step 0：確認 PR 編號
 
