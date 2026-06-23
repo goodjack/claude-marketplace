@@ -23,6 +23,7 @@ PR code review 工具，含互動式與 CI 自動化審查。
 包含以下 skills：
 - **reviewing-pull-request** — 互動式 PR code review，提供行級 review comments，含嚴重度 badge 與 merge-result 分析
 - **reviewing-pull-request-ci** — CI/CD 環境專用的非互動式 PR review，適用於 GitHub Actions 自動化審查
+- **addressing-pr-reviews** — 處理收到的 PR review 留言：盤點未解決 threads、查證宣稱、分類採納/反駁、回覆 reviewer、修正 push 並 resolve
 
 ### aws-investigate
 

@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "code-review",
-      "description": "PR code review 工具，含互動式與 CI 自動化審查",
+      "description": "PR code review 工具，含互動式審查、CI 自動化審查、以及 review 留言回覆工作流",
       "source": "./plugins/code-review"
     },
     {
