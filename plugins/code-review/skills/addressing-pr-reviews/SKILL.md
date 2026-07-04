@@ -1,7 +1,6 @@
 ---
 name: addressing-pr-reviews
 argument-hint: [PR 編號]
-version: 0.1.0
 description: >-
   處理 GitHub PR review 留言的完整回覆工作流：列出未解決/未回覆的 review threads、
   逐則查證留言宣稱是否屬實、分類決定採納或反駁、先回覆預計做法、修正 push 後附
@@ -9,8 +8,8 @@ description: >-
   確認 review 留言是否合理、resolve conversation、修正 review 指出的問題、
   回 reviewer 或 Copilot/AI reviewer 留言時使用——
   即使只說「處理一下 PR 上的 review」也應觸發。
-  與 reviewing-pull-request 的區別：本 skill 處理「收到的」review 留言，
-  reviewing-pull-request 是「發出」review。
+  與 review skill 的區別：本 skill 處理「收到的」review 留言，
+  review skill 是「發出」review。
   不確定是否該觸發時，傾向觸發。
 allowed-tools:
   - Read

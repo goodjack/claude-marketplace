@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# 偵測執行環境：CI 模式或互動模式
+# 輸出 "ci" 或 "interactive"
+
+if [ -n "$GITHUB_ACTIONS" ] || [ -n "$TRAVIS" ] || [ -n "$CODEBUILD_BUILD_ID" ]; then
+  echo "ci"
+else
+  echo "interactive"
+fi
