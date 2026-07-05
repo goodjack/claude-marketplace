@@ -1,6 +1,6 @@
 {
   "name": "aws-investigate",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷，支援定期掃描與特定問題調查",
   "author": {
     "name": "goodjack"

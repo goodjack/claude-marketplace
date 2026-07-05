@@ -30,6 +30,7 @@
 ### 數據與來源
 
 - 每個數據點附查詢來源編號（`[Q1]`、`[ALB-Q1]` 等），讓讀者能自行驗證（詳見 `analysis-principles.md`「數據點附查詢來源」）
+- Trace-enhanced 模式（`config.trace_id` 已設定）下，量體標示使用「N 筆獨立請求（M 筆 log entries，倍率 M/Nx）」格式，以 unique requests 為基準
 - 查詢來源編號只出現在技術細節區塊內（`<details>` 或底部技術章節）和證據/來源欄位中，敘事主文不放——會議投影時這些編號對多數讀者是雜訊
 - 不同觀測層的數據標明來源：後端 application log ≠ CDN access log ≠ ALB access log，不混在同一行（見 `analysis-principles.md`「觀測層區分」）
 - 語言精準：資料有混合結果時用限定語，不用絕對語句（見 `analysis-principles.md`「語言精準」）

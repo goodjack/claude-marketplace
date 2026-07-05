@@ -24,7 +24,7 @@ default_log_group_prefix: "/app/myservice"
 log_formats:
   python_structlog:
     - "/app/myservice/api"
-    - "/app/myservice/tasks"
+    - "/app/myservice/tasks"     # 背景任務（Celery / worker 等），與 API 共用查詢
   nuxt_ssr:
     - "/app/myservice/web"
     - "/app/myservice/frontend"
@@ -36,6 +36,23 @@ log_formats:
 backend_error_keywords:
   external_api_failure: ""               # 如 "occur ERROR"、"HTTP request failed"、"request error"
   unhandled_exception: "Exception in ASGI"  # ASGI 通用（FastAPI / Starlette）；其他框架填入對應的未捕獲 exception 關鍵字
+
+# ─── Error Type 欄位 ─────────────────────────────────────────────────────────
+# Error log 中 error type（如 ApimTimeoutError）的存放位置。
+# 不同框架的 error type 存在不同欄位，影響 Scan 1 第三·五層的彙總查詢。
+# 首次設定可透過 codebase 掃描自動偵測。留空則掃描時動態探索。
+error_type_field:
+  python_structlog: "exc_info.0"          # structlog 的 exception chain 第一個元素
+  # nuxt_ssr: "err.type"                  # pino 的 error type 欄位
+
+# ─── Trace ID 設定 ────────────────────────────────────────────────────────────
+# 專案 log 中的 trace ID 欄位。啟用後調查工具箱支援 trace discovery
+# 和 trace-based 去重。留空或省略此 section 則使用純 log-only 模式。
+trace_id:
+  backend_field: "amz_trace_id"             # 後端 log 中的 trace ID 獨立欄位名
+  frontend_pattern: '"X-Amzn-Trace-Id":"'   # 前端 log 中 trace ID 的 @message 搜尋 pattern
+  format: "Root=1-{hex8}-{hex24}"           # 格式描述（人讀用）
+  search_fragment_length: 8                 # 搜尋用的 hex fragment 長度
 
 # ─── Athena（ALB Log 分析）────────────────────────────────────────────────────
 # Scan 4（ALB 查詢）需要。若不使用 Athena 可留空或省略。

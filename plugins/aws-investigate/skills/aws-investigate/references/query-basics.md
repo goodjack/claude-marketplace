@@ -156,3 +156,94 @@ aws logs start-query \
 | SSO Token 過期（`Token has expired and refresh failed`） | 執行 `aws sso login`（**不帶 `--profile`**，SSO session 是共用的），登入後繼續 |
 | `LimitExceededException` | 等 5 秒再重試（CloudWatch 並發查詢上限） |
 | FilterLogEvents `ThrottlingException` | 等 2 秒 + exponential backoff（5 TPS 硬限） |
+
+---
+
+## Subagent 回傳格式模板
+
+所有 CloudWatch / Athena 查詢使用 subagent 委派。Subagent 的職責是**執行查詢並壓縮結果**，不做分析判斷。
+
+**Subagent prompt 模板**：
+
+```
+執行以下 CloudWatch 查詢，回傳結構化摘要（不要回傳原始 JSON）。
+
+AWS Profile: {profile}
+時間範圍: {start_epoch} ~ {end_epoch}
+
+[查詢 1: {描述}]
+{完整 aws logs start-query 指令}
+
+[查詢 2: {描述}]
+{完整 aws logs start-query 指令}
+
+執行方式：送出所有查詢、等待完成、取回結果。
+
+回傳格式：每支查詢回傳一個摘要表（markdown table），包含：
+- 查詢標籤（如 Q1A）
+- recordsMatched 數量
+- 關鍵欄位的彙總結果（排序後的 top entries）
+- 若是取樣查詢：每筆的關鍵欄位值（timestamp、path/namespace、error message 前 200 字元）
+
+不要回傳 raw JSON、@ptr、statistics block、完整 stack trace。
+```
+
+**每支 subagent 限 3-4 支查詢**，避免工作量過大導致 stall。需要 5+ 支查詢時，拆成多支 subagent 平行。
+
+---
+
+## Trace ID 查詢模式
+
+前提：`config.trace_id` 已設定。未設定時跳過所有 trace 相關查詢。
+
+### 已知 Trace ID 追蹤
+
+用 FilterLogEvents（免費）精確查找特定 trace：
+
+```bash
+aws logs filter-log-events \
+  --log-group-name "{log_group}" \
+  --start-time {start_epoch_ms} --end-time {end_epoch_ms} \
+  --filter-pattern '"{trace_fragment}"' \
+  --profile {profile} --output json
+```
+
+> `trace_fragment` 長度由 `config.trace_id.search_fragment_length` 決定（預設 8 hex chars），確保唯一性的同時減少搜尋成本。
+
+### Trace Discovery（從 error 反查 trace ID）
+
+從已知 error 群集中取樣，萃取 trace ID 做去重和跨層關聯：
+
+```
+fields {config.trace_id.backend_field}, event, logger
+| filter level = "error" and event like /{error_keyword}/
+| limit 10
+```
+
+### Trace-Based 去重
+
+同一個 request 可能產生多筆 log（如 uvicorn.error + fastapi.routes）。用 `count_distinct` 對比：
+
+```
+fields {config.trace_id.backend_field}
+| filter level = "error" and event like /{error_keyword}/
+| stats count(*) as log_count, count_distinct({config.trace_id.backend_field}) as unique_requests
+```
+
+`log_count / unique_requests` = double-logging 倍率。報告以 unique_requests 為基準。
+
+### 跨前後端 Trace 關聯
+
+用 trace fragment 跨 log group 驗證前後端是否對應同一個 request：
+
+```bash
+# 後端取 trace ID fragment
+# 再用 fragment 搜尋前端 log group
+aws logs filter-log-events \
+  --log-group-name "{frontend_log_group}" \
+  --start-time {start_epoch_ms} --end-time {end_epoch_ms} \
+  --filter-pattern '"{trace_fragment}"' \
+  --profile {profile} --output json
+```
+
+> 前端 log 的 trace ID 通常巢狀在 `@message` 中（如 `config.headers.X-Amzn-Trace-Id`），用 `config.trace_id.frontend_pattern` 定位。

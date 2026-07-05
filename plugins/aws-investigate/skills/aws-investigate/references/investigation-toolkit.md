@@ -72,6 +72,8 @@ fields url, responseTime
 
 ## T2: Trace ID 時序追蹤
 
+### T2-A: 已知 Trace ID 追蹤
+
 trace ID 格式：`Root=1-{hex8}-{hex24}`（AWS X-Ray 格式），搜尋用中間 8 位 hex（如 `69dfb888`）。
 
 ### 單一 log group（用 FilterLogEvents，免費）
@@ -119,6 +121,38 @@ aws logs start-query \
 `@log` 欄位可區分來源是哪個 log group。
 
 從時序結果確認：前端何時呼叫後端 → 後端何時呼叫下游服務 → 哪些呼叫快速失敗（毫秒內）vs 卡住（數秒後才回傳）→ 連鎖失敗的起點是哪一層。
+
+### T2-B: Trace Discovery（從 error context 找 trace ID）
+
+前提：`config.trace_id` 已設定。未設定時跳過此段。
+
+當你只有 error keyword 但沒有特定 trace ID 時，用以下流程從 error 群集中發掘 trace，做去重和跨層關聯。查詢模式細節見 `references/query-basics.md`「Trace ID 查詢模式」。
+
+**Step 1: 取樣帶 trace ID 的 error log**
+
+從已知 error keyword 反查 trace ID：
+
+```
+fields {config.trace_id.backend_field}, event, logger
+| filter level = "error" and event like /{error_keyword}/
+| limit 10
+```
+
+**Step 2: Trace-based 去重**
+
+同一個 request 可能產生多筆 log（如 uvicorn.error + fastapi.routes 各記一次）。用 `count_distinct` 對比：
+
+```
+fields {config.trace_id.backend_field}
+| filter level = "error" and event like /{error_keyword}/
+| stats count(*) as log_count, count_distinct({config.trace_id.backend_field}) as unique_requests
+```
+
+`log_count / unique_requests` = double-logging 倍率。報告以 unique_requests 為基準。
+
+**Step 3: 跨前後端 trace 關聯**
+
+取 Step 1 的 trace ID fragment（長度由 `config.trace_id.search_fragment_length` 決定），用 FilterLogEvents 在前端 log group 搜尋。若前端也有對應的 error log → 該 error 是 full-stack（使用者直接感受）；若前端無對應 → backend_only。
 
 ---
 
