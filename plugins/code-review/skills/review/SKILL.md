@@ -214,6 +214,15 @@ gh api repos/OWNER/REPO/pulls/NUMBER/files | jq -r '.[N].patch'
 - 空格前綴的行：行號 +1
 - `-` 前綴的行：不增加行號
 
+##### 發佈前防呆
+
+發佈 inline comment 前，逐則驗證行號與引用程式碼相符，避免 comment 掛錯行：
+
+1. 用 `gh api repos/{owner}/{repo}/pulls/{n}/files` 取得目標檔案的 patch
+2. 從 patch 定位你要 comment 的行號，確認該行 ±1 行的內容與你引用的程式碼相符
+3. 不相符 → 依上方「行號解析邏輯」重算行號，回到步驟 2 再驗證一次
+4. 連續兩次不相符 → 放棄行級定位，改用 file-level comment（省略 `line`/`side`，改帶 `subject_type: "file"`），並在 comment 內文註明對應的程式碼片段與大約位置
+
 ##### 發佈批次 review
 
 ```bash
