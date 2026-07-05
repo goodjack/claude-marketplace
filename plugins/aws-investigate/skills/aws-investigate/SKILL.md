@@ -22,17 +22,24 @@ effort: high
 
 ## Model 使用策略
 
+模型一律用相對語意描述，不寫死特定模型名稱，換模型後規則仍成立：
+- **主對話**＝當次 session 目前使用中的模型
+- **最低階可用模型**＝可用模型中最便宜/最快的一級，用於單純執行＋擷取
+- **中複雜度可用模型**＝高於最低階、低於主對話層級的可用模型，用於需管理多支平行查詢或初步分類的場合（最低階模型易在此犯錯）
+
+> 現況對照註記（2026-07，僅供理解，非執行依據）：Haiku＝最低階、Sonnet＝中複雜度、Opus＝最高可用。
+
 | 角色 | Model | 原因 |
 |------|-------|------|
-| 主對話（分析、篩選、分級、報告撰寫） | **Opus** | 需要深度推理、跨領域判斷、綜合多方數據 |
-| 查詢 subagent — 簡單查詢（單支查詢、單一 log group） | **Haiku** | 純執行+提取，成本為 Sonnet 的 1/3 |
-| 查詢 subagent — 複雜查詢（多支平行、複雜 shell 轉義） | **Sonnet** | Haiku 在複雜 shell 轉義或多 queryId 管理時可能犯錯 |
+| 主對話（分析、篩選、分級、報告撰寫） | 主對話（session 目前模型） | 需要深度推理、跨領域判斷、綜合多方數據 |
+| 查詢 subagent — 簡單查詢（單支查詢、單一 log group） | 最低階可用模型 | 純執行+提取，成本最低 |
+| 查詢 subagent — 複雜查詢（多支平行、複雜 shell 轉義） | 中複雜度可用模型 | 最低階模型在複雜 shell 轉義或多 queryId 管理時可能犯錯 |
 
 ### Subagent Model 選擇判斷
 
-- 單支查詢 + 單一 log group → **Haiku**
-- 2-4 支查詢 + 需要平行管理 queryId → **Sonnet**
-- 查詢結果需要初步分類（如區分雜訊 vs 真實 error）→ **Sonnet**
+- 單支查詢 + 單一 log group → 最低階可用模型
+- 2-4 支查詢 + 需要平行管理 queryId → 中複雜度可用模型
+- 查詢結果需要初步分類（如區分雜訊 vs 真實 error）→ 中複雜度可用模型
 
 ### Context Engineering 核心原則
 
@@ -80,13 +87,13 @@ AWS Profile: {profile}
 
 | 階段 | 輸入 | 執行方式 | 輸出 |
 | --- | --- | --- | --- |
-| **Quick Triage** | 固定 query set + context.local.md | **Haiku** subagent（1 支，query set 見 Step 1） | 錯誤分布概覽 + 已知模式比對 |
+| **Quick Triage** | 固定 query set + context.local.md | **最低階可用模型** subagent（1 支，query set 見 Step 1） | 錯誤分布概覽 + 已知模式比對 |
 | **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
-| Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
-| Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
-| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
-| T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
-| 產出報告 | 全部摘要 | **主對話 Opus** | `{config.report_dir}/` 檔案 |
+| Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | 最低階/中複雜度可用模型 subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
+| Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | 最低階/中複雜度可用模型 subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
+| Scan 5 分級 | 上階段摘要 | **主對話（session 模型）**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
+| T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話（session 模型）** + 直接 bash | root cause 分析 |
+| 產出報告 | 全部摘要 | **主對話（session 模型）** | `{config.report_dir}/` 檔案 |
 
 ### 取樣查詢的 token 節約
 
@@ -104,7 +111,7 @@ fields @timestamp, @message
 
 若必須看完整 `@message`（如解析複雜巢狀結構），在 subagent 內用 `python3 -c` + `json.loads` 精簡後再摘要回傳，不要直接回傳原始 JSON。
 
-### 不委派的工作（留在 Opus 主 conversation）
+### 不委派的工作（留在主對話，用 session 模型）
 
 - Scan 5 分級篩選（需要判斷力）
 - T1-T4 調查工具箱的分析推理（需要理解程式碼和呼叫鏈）
@@ -285,7 +292,7 @@ aws logs describe-log-groups \
 
 **前提**：`config.local.yaml` 必須存在且含 `log_formats`。不存在時跳過 Quick Triage，fallback 到 Phase 1-3 互動流程再進 Step 3 完整掃描。
 
-用 **1 支 Haiku subagent** 執行以下固定 query set。時間範圍為 Step 0 決定的範圍。
+用 **1 支最低階可用模型 subagent** 執行以下固定 query set。時間範圍為 Step 0 決定的範圍。
 
 **Log group 選擇**：從 `{config.log_formats}` 取所有 log groups，按格式類型分組。同格式的 log groups 合併到同一個 Insights 查詢（CloudWatch Insights 支援多 log group）。
 
