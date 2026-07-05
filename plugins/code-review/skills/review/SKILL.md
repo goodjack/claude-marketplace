@@ -139,8 +139,8 @@ git diff origin/<baseRefName>...HEAD
 #### Local review 模式
 
 ```bash
-UPSTREAM=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null | sed 's|^origin/||' || echo "main")
-git diff origin/${UPSTREAM}...HEAD
+UPSTREAM=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/main")
+git diff "origin/${UPSTREAM#origin/}...HEAD"
 ```
 
 不需 checkout merge result，不需記錄 headRefOid。
@@ -221,7 +221,7 @@ gh api repos/OWNER/REPO/pulls/NUMBER/files | jq -r '.[N].patch'
 1. 用 `gh api repos/{owner}/{repo}/pulls/{n}/files` 取得目標檔案的 patch
 2. 從 patch 定位你要 comment 的行號，確認該行 ±1 行的內容與你引用的程式碼相符
 3. 不相符 → 依上方「行號解析邏輯」重算行號，回到步驟 2 再驗證一次
-4. 連續兩次不相符 → 放棄行級定位，改用 file-level comment（省略 `line`/`side`，改帶 `subject_type: "file"`），並在 comment 內文註明對應的程式碼片段與大約位置
+4. 連續兩次不相符 → 放棄行級定位，改用 PR-level comment（`POST /pulls/{n}/reviews` 的 `comments[]` 不支援 `subject_type`，無法在批次 review 內做 file-level）：用下方「僅在 line comment 無法表達時」的獨立 `gh pr review --comment` 發佈，內文註明對應的檔案路徑、程式碼片段與大約位置
 
 ##### 發佈批次 review
 
