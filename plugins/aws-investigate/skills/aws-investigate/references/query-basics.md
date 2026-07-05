@@ -161,7 +161,7 @@ aws logs start-query \
 
 ## Subagent 回傳格式模板
 
-所有 CloudWatch / Athena 查詢使用 subagent 委派。Subagent 的職責是**執行查詢並壓縮結果**，不做分析判斷。
+委派原則與每支 subagent 的查詢數量上限見 `SKILL.md`「查詢委派策略」，此處只放 prompt 模板與回傳格式本體。
 
 **Subagent prompt 模板**：
 
@@ -187,8 +187,6 @@ AWS Profile: {profile}
 
 不要回傳 raw JSON、@ptr、statistics block、完整 stack trace。
 ```
-
-**每支 subagent 限 3-4 支查詢**，避免工作量過大導致 stall。需要 5+ 支查詢時，拆成多支 subagent 平行。
 
 ---
 

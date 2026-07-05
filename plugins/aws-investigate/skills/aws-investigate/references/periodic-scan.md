@@ -2,9 +2,9 @@
 
 適用時機：統整一段時間（如一週）的 error 全貌，找出需要修復的系統性問題。
 
-**完整流程：Scan 1-5 彙總 → Scan 6 篩選 → 對 🔴 高/🟡 中 問題執行調查工具箱 → 產出報告。**
+**完整流程：Scan 1-4 彙總（含 Scan 1.5 tasks 分析）→ Scan 5 篩選 → 對 🔴 高/🟡 中 問題執行調查工具箱 → 產出報告。**
 
-> **方法論對齊**：Scan 1-5 = **volume-based discovery**（找出所有活躍 error）；Scan 6 = **impact-based prioritization**（依 business impact 排序，參考 Google SRE error budget 框架）。Scan 1 第四層 error type 彙總 = **error fingerprinting**（Sentry/Datadog 標準做法：跨 event 格式按 error type 分群，發現共源 error）。Scan 2 tasks 獨立分析 = **background job observability**（背景任務有 retry masking、silent failure 等獨特失敗模式，需獨立觀測）。Trace 去重 = **noise reduction + root cause isolation**（同一 request 的多筆 log 歸為同一 incident，找出連鎖失敗的起點）。
+> **方法論對齊**：Scan 1-4 = **volume-based discovery**（找出所有活躍 error）；Scan 5 = **impact-based prioritization**（依 business impact 排序，參考 Google SRE error budget 框架）。Scan 1 第三·五層 error type 交叉驗證 = **error fingerprinting**（Sentry/Datadog 標準做法：跨 event 格式按 error type 分群，發現共源 error）。Scan 1.5 tasks 獨立分析 = **background job observability**（背景任務有 retry masking、silent failure 等獨特失敗模式，需獨立觀測）。Trace 去重 = **noise reduction + root cause isolation**（同一 request 的多筆 log 歸為同一 incident，找出連鎖失敗的起點）。
 
 ---
 
