@@ -1,7 +1,7 @@
 {
   "name": "code-review",
-  "version": "0.2.0",
-  "description": "PR code review 工具，含互動式審查、CI 自動化審查、以及 review 留言回覆工作流",
+  "version": "0.5.0",
+  "description": "統一程式碼審查工具，支援 PR review、local review、CI 自動化審查、以及 review 留言回覆工作流",
   "author": {
     "name": "goodjack"
   }

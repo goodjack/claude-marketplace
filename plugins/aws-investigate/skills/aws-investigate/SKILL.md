@@ -22,17 +22,24 @@ effort: high
 
 ## Model 使用策略
 
+模型一律用相對語意描述，不寫死特定模型名稱，換模型後規則仍成立：
+- **主對話**＝當次 session 目前使用中的模型
+- **最低階可用模型**＝可用模型中最便宜/最快的一級，用於單純執行＋擷取
+- **中複雜度可用模型**＝高於最低階、低於主對話層級的可用模型，用於需管理多支平行查詢或初步分類的場合（最低階模型易在此犯錯）
+
+> 現況對照註記（2026-07，僅供理解，非執行依據）：Haiku＝最低階、Sonnet＝中複雜度、Opus＝最高可用。
+
 | 角色 | Model | 原因 |
 |------|-------|------|
-| 主對話（分析、篩選、分級、報告撰寫） | **Opus** | 需要深度推理、跨領域判斷、綜合多方數據 |
-| 查詢 subagent — 簡單查詢（單支查詢、單一 log group） | **Haiku** | 純執行+提取，成本為 Sonnet 的 1/3 |
-| 查詢 subagent — 複雜查詢（多支平行、複雜 shell 轉義） | **Sonnet** | Haiku 在複雜 shell 轉義或多 queryId 管理時可能犯錯 |
+| 主對話（分析、篩選、分級、報告撰寫） | 主對話（session 目前模型） | 需要深度推理、跨領域判斷、綜合多方數據 |
+| 查詢 subagent — 簡單查詢（單支查詢、單一 log group） | 最低階可用模型 | 純執行+提取，成本最低 |
+| 查詢 subagent — 複雜查詢（多支平行、複雜 shell 轉義） | 中複雜度可用模型 | 最低階模型在複雜 shell 轉義或多 queryId 管理時可能犯錯 |
 
 ### Subagent Model 選擇判斷
 
-- 單支查詢 + 單一 log group → **Haiku**
-- 2-4 支查詢 + 需要平行管理 queryId → **Sonnet**
-- 查詢結果需要初步分類（如區分雜訊 vs 真實 error）→ **Sonnet**
+- 單支查詢 + 單一 log group → 最低階可用模型
+- 2-4 支查詢 + 需要平行管理 queryId → 中複雜度可用模型
+- 查詢結果需要初步分類（如區分雜訊 vs 真實 error）→ 中複雜度可用模型
 
 ### Context Engineering 核心原則
 
@@ -45,32 +52,7 @@ effort: high
 
 ### 查詢委派策略
 
-所有 CloudWatch / Athena 查詢使用 subagent 委派。Subagent 的職責是**執行查詢並壓縮結果**，不做分析判斷。
-
-**Subagent prompt 模板**：
-
-```
-執行以下 CloudWatch 查詢，回傳結構化摘要（不要回傳原始 JSON）。
-
-AWS Profile: {profile}
-時間範圍: {start_epoch} ~ {end_epoch}
-
-[查詢 1: {描述}]
-{完整 aws logs start-query 指令}
-
-[查詢 2: {描述}]
-{完整 aws logs start-query 指令}
-
-執行方式：送出所有查詢、等待完成、取回結果。
-
-回傳格式：每支查詢回傳一個摘要表（markdown table），包含：
-- 查詢標籤（如 Q1A）
-- recordsMatched 數量
-- 關鍵欄位的彙總結果（排序後的 top entries）
-- 若是取樣查詢：每筆的關鍵欄位值（timestamp、path/namespace、error message 前 200 字元）
-
-不要回傳 raw JSON、@ptr、statistics block、完整 stack trace。
-```
+所有 CloudWatch / Athena 查詢使用 subagent 委派。Subagent 的職責是**執行查詢並壓縮結果**，不做分析判斷。Subagent prompt 模板和回傳格式規範見 `references/query-basics.md`「Subagent 回傳格式模板」段落。
 
 **每支 subagent 限 3-4 支查詢**，避免工作量過大導致 stall。需要 5+ 支查詢時，拆成多支 subagent 平行。
 
@@ -80,13 +62,13 @@ AWS Profile: {profile}
 
 | 階段 | 輸入 | 執行方式 | 輸出 |
 | --- | --- | --- | --- |
-| **Quick Triage** | 固定 query set + context.local.md | **Haiku** subagent（1 支，query set 見 Step 1） | 錯誤分布概覽 + 已知模式比對 |
+| **Quick Triage** | 固定 query set + context.local.md | **最低階可用模型** subagent（1 支，query set 見 Step 1） | 錯誤分布概覽 + 已知模式比對 |
 | **↕ Checkpoint** | Triage 摘要 | 展示結果，問使用者是否繼續 | 使用者決定 scope |
-| Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | Haiku/Sonnet subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
-| Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | Haiku/Sonnet subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
-| Scan 5 分級 | 上階段摘要 | **主對話 Opus**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
-| T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話 Opus** + 直接 bash | root cause 分析 |
-| 產出報告 | 全部摘要 | **主對話 Opus** | `{config.report_dir}/` 檔案 |
+| Scan 1-2 彙總 | Triage 摘要 + 查詢模板 | 最低階/中複雜度可用模型 subagent（回傳摘要表） | 錯誤分布摘要（跳過 Step 0） |
+| Scan 3 取樣 + 雜訊識別 | 上階段摘要 + 取樣查詢 | 最低階/中複雜度可用模型 subagent（回傳摘要表） | 每個 error 的分類（雜訊/真實/待查） |
+| Scan 5 分級 | 上階段摘要 | **主對話（session 模型）**（需判斷力） | 🔴 高/🟡 中/⚪ 低 分級清單 |
+| T1-T4 深入調查 | 🔴 高/🟡 中 清單 | **主對話（session 模型）** + 直接 bash | root cause 分析 |
+| 產出報告 | 全部摘要 | **主對話（session 模型）** | `{config.report_dir}/` 檔案 |
 
 ### 取樣查詢的 token 節約
 
@@ -104,7 +86,7 @@ fields @timestamp, @message
 
 若必須看完整 `@message`（如解析複雜巢狀結構），在 subagent 內用 `python3 -c` + `json.loads` 精簡後再摘要回傳，不要直接回傳原始 JSON。
 
-### 不委派的工作（留在 Opus 主 conversation）
+### 不委派的工作（留在主對話，用 session 模型）
 
 - Scan 5 分級篩選（需要判斷力）
 - T1-T4 調查工具箱的分析推理（需要理解程式碼和呼叫鏈）
@@ -132,6 +114,8 @@ fields @timestamp, @message
 檢查 `${CLAUDE_SKILL_DIR}/config.local.yaml` 是否存在：
 
 **存在** → 讀取為 `{config}` 變數，用於後續所有預設值。結構定義見 `${CLAUDE_SKILL_DIR}/config.example.yaml`（含每個欄位的用途註解）。
+
+**模式偵測**：檢查 `config.trace_id.backend_field` 是否存在且非空——存在則啟用 **trace-enhanced** 模式（調查工具箱 T2-B、Scan 1 第三·五層 trace 去重可用），不存在則使用 **log-only** 模式（所有 trace 步驟跳過，行為同修改前）。
 
 **Step 2：專案特定知識**
 
@@ -165,18 +149,30 @@ fields @timestamp, @message
 
 2. **偵測 AWS Profiles**：執行 `aws configure list-profiles`。
 
-3. **AskUserQuestion（第一輪——核心設定）**：
+3. **AskUserQuestion（第一輪——核心設定 + repo 路徑）**：
    - AWS profile（radio）：「要用哪個 profile 查詢 production 環境？」顯示偵測到的 profiles 作為選項。
    - Staging profile（radio）：「Staging 環境的 profile？（比對 prod/staging 差異時會用到）」若偵測到的 profiles 中有明顯 staging 名稱可推薦。若專案沒有 staging 環境，選「沒有 staging 環境」。
    - Log group prefix：「Log group 的共同前綴是什麼？（例如 `/app/myservice`，用來找出要掃描的 log groups）」
    - 時區（radio）：預設推薦 UTC+8 / TWN。
+   - 相關 codebase repo 路徑：「其他相關的 codebase repo 路徑？（我會掃描程式碼自動偵測 log 格式、trace ID、Redis 等設定值）」選項：自訂輸入。若只有當前 repo，選「只有當前 repo」。
 
 4. **偵測 Log Groups + 格式**（用使用者選的 profile 和 prefix）：
    - 執行 `aws logs describe-log-groups` 列出符合的 log groups
    - 用 AskUserQuestion（checkbox）讓使用者確認要掃描哪些 log groups（預設全選）
    - 用 AskUserQuestion 詢問每個選中 log group 的格式：「這些 log groups 分別是什麼格式？（影響查詢語法和欄位名稱）」提供選項：Python structlog / Nuxt SSR (pino) / 其他
 
-5. **偵測 Athena（ALB log 查詢用）**：
+5. **Codebase 掃描自動偵測**：用 Grep/Read 掃描當前 repo + 使用者提供的 related_repos，偵測以下設定的建議值：
+
+   | 偵測目標 | 掃描方式 | 對應 config 欄位 |
+   |---------|---------|-----------------|
+   | Error type 欄位 | logging config（structlog 的 `exc_info`、pino 的 `err.type`） | `error_type_field` |
+   | Trace ID | middleware / request context / header 設定 | `trace_id.*` |
+   | Redis key pattern | Redis client usage（prefix、key 模板） | `redis_key_prefixes` |
+   | Error keywords | error handler / exception logger 實作 | `backend_error_keywords` |
+
+   此步驟與 Phase 0 Step 2（context.local.md 生成）共用掃描邏輯——差異在於首次設定將結果寫入 config，後續調查則寫入 context.local.md。未偵測到的欄位留空，使用者可手動填寫或在後續調查中動態探索。
+
+6. **偵測 Athena（ALB log 查詢用）**：
    - 執行 `aws athena list-work-groups --profile {profile}`
    - 若偵測到 workgroup：
      a. 只有一個 → 自動選用，告知使用者
@@ -185,13 +181,15 @@ fields @timestamp, @message
    - 用 AskUserQuestion 讓使用者選擇 ALB table：「以下是 Athena 中的 table，哪些是 ALB access log？（用來分析 container crash、慢請求等 CloudWatch 看不到的問題）」
    - 若偵測不到 workgroup 或 table：「你的專案有用 Athena 查詢 ALB log 嗎？若沒有使用，選『沒有使用 Athena』」
 
-6. **AskUserQuestion（第二輪——補充設定）**：
-   - Redis key prefix：「Redis 的 key prefix pattern？（追查 Redis memory 暴增時用來辨識 key 來源，例如 `session:`、`cache:` 等）」提供常見 prefix 選項 + 自訂。若專案沒用 Redis，選「沒有使用 Redis」。
-   - 相關 codebase repo 路徑：「其他相關的 codebase repo 路徑？（調查中追蹤呼叫鏈常需跨 repo 看程式碼）」選項：自訂輸入。若只有當前 repo，選「只有當前 repo」。答案寫入 config 的 `related_repos` key。
+7. **AskUserQuestion（第二輪——確認自動偵測結果）**：展示 step 5 偵測到的建議值，請使用者確認或修改：
+   - Redis key prefix：若偵測到則預填，否則手動。「Redis 的 key prefix pattern？」若專案沒用 Redis，選「沒有使用 Redis」。
+   - Backend error keywords：若偵測到則預填（如 `occur ERROR`、`Exception in ASGI`），否則手動。
+   - Error type 欄位：若偵測到則預填（如 `python_structlog: exc_info.0`），否則留空（掃描時動態探索）。
+   - Trace ID 設定：若偵測到則顯示建議值（如 `backend_field: amz_trace_id`），否則提供「未使用 trace ID」選項。
 
-7. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
-8. **確保報告產出被 gitignore**：檢查 `{config.report_dir}/.gitignore` 是否存在。若不存在，建立內容為 `*` 和 `!.gitignore` 兩行，整個子目錄的產出都不進 git。
-9. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
+8. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
+9. **確保報告產出被 gitignore**：檢查 `{config.report_dir}/.gitignore` 是否存在。若不存在，建立內容為 `*` 和 `!.gitignore` 兩行，整個子目錄的產出都不進 git。
+10. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
@@ -263,6 +261,7 @@ aws logs describe-log-groups \
 | 「Redis 暴增」「memory 異常」 | B → 直接 T5 | `query-basics` → `investigation-toolkit`(T5) → `aws-tools` → `metrics-charts` |
 | 「效能變慢」「部署後異常」 | B → 直接 T1 | `query-basics` → `investigation-toolkit`(T1) → `aws-tools` → `metrics-charts` |
 | 「寫事件報告」「incident report」 | 視情境 | `report-guidelines` + `report-template` → `analysis-principles` |
+| 「這個 error 背後有多少 unique request」 | Scan 1 第三·五層 + T2-B | `query-basics`（trace 查詢模式）→ `periodic-scan`（第三·五層）→ `investigation-toolkit`（T2-B） |
 | 「上次報告提到的那個問題」 | B | `query-basics` → `known-patterns` → `investigation-toolkit`（`context.local.md` 已在 Phase 0 載入） |
 
 ### 入口 A：定期掃描
@@ -285,7 +284,7 @@ aws logs describe-log-groups \
 
 **前提**：`config.local.yaml` 必須存在且含 `log_formats`。不存在時跳過 Quick Triage，fallback 到 Phase 1-3 互動流程再進 Step 3 完整掃描。
 
-用 **1 支 Haiku subagent** 執行以下固定 query set。時間範圍為 Step 0 決定的範圍。
+用 **1 支最低階可用模型 subagent** 執行以下固定 query set。時間範圍為 Step 0 決定的範圍。
 
 **Log group 選擇**：從 `{config.log_formats}` 取所有 log groups，按格式類型分組。同格式的 log groups 合併到同一個 Insights 查詢（CloudWatch Insights 支援多 log group）。
 
@@ -300,7 +299,7 @@ aws logs describe-log-groups \
 
 **結果異常處理**：若任何查詢 `recordsMatched = 0` 或 group-by 結果全為空值，可能是欄位名稱不符。提示使用者確認 log 格式設定，或執行完整掃描（含探索查詢）。
 
-**recordsMatched 與 top 20 的差距**：若 top 20 的 count 加總遠小於 recordsMatched，表示大量 error 有 unique event string（如含 UUID、request path 的 middleware log），被 group-by 稀釋。此時需在完整掃描 Scan 1 中用排除法或 `parse` 萃取 event 前綴重新分群。
+**recordsMatched 與 top 20 的差距**：若 top 20 的 count 加總遠小於 recordsMatched，表示大量 error 有 unique event string（如含 UUID、request path 的 middleware log），被 group-by 稀釋。此時需在完整掃描 Scan 1 中用排除法或 `parse` 萃取 event 前綴重新分群。完整掃描還包含 error type 交叉驗證（第三·五層，跨 event 格式彙總 error type 找出碎片化低估）和 tasks 獨立分析（Scan 1.5，找出被合併查詢蓋過的背景任務專屬 error）。
 
 取得 subagent 回傳的摘要後，在主對話中執行：
 

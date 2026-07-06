@@ -18,11 +18,10 @@ goodjack 的個人 Claude Code plugin marketplace。
 
 ### code-review
 
-PR code review 工具，含互動式與 CI 自動化審查。
+統一程式碼審查工具，支援 PR review、local review、CI 自動化審查。
 
 包含以下 skills：
-- **reviewing-pull-request** — 互動式 PR code review，提供行級 review comments，含嚴重度 badge 與 merge-result 分析
-- **reviewing-pull-request-ci** — CI/CD 環境專用的非互動式 PR review，適用於 GitHub Actions 自動化審查
+- **review** — 統一程式碼審查，支援 PR review（行級 GitHub comments）和 local review（終端機輸出），CI 環境自動偵測
 - **addressing-pr-reviews** — 處理收到的 PR review 留言：盤點未解決 threads、查證宣稱、分類採納/反駁、回覆 reviewer、修正 push 並 resolve
 
 ### aws-investigate

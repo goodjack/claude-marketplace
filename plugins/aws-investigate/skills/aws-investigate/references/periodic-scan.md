@@ -2,11 +2,15 @@
 
 適用時機：統整一段時間（如一週）的 error 全貌，找出需要修復的系統性問題。
 
-**完整流程：Scan 1-4 彙總 → Scan 5 篩選 → 對 🔴 高/🟡 中 問題執行調查工具箱 → 產出報告。**
+**完整流程：Scan 1-4 彙總（含 Scan 1.5 tasks 分析）→ Scan 5 篩選 → 對 🔴 高/🟡 中 問題執行調查工具箱 → 產出報告。**
+
+> **方法論對齊**：Scan 1-4 = **volume-based discovery**（找出所有活躍 error）；Scan 5 = **impact-based prioritization**（依 business impact 排序，參考 Google SRE error budget 框架）。Scan 1 第三·五層 error type 交叉驗證 = **error fingerprinting**（Sentry/Datadog 標準做法：跨 event 格式按 error type 分群，發現共源 error）。Scan 1.5 tasks 獨立分析 = **background job observability**（背景任務有 retry masking、silent failure 等獨特失敗模式，需獨立觀測）。Trace 去重 = **noise reduction + root cause isolation**（同一 request 的多筆 log 歸為同一 incident，找出連鎖失敗的起點）。
 
 ---
 
 ## Scan 1: 後端 error 分層彙總
+
+**掃描範圍**：對 `config.log_formats` 中所有同格式的 log group 合併查詢（CloudWatch Insights 支援 `--log-group-names` 多 group）。例如 `python_structlog` 下所有 log group（API server、背景任務等）共用同一組查詢，避免遺漏非 API 來源的 error。
 
 先 group by level 確認後端 level 分布（見 `references/query-basics.md` Log Level 判讀策略），再依優先序查詢。
 
@@ -84,7 +88,69 @@ fields @timestamp, event
 
 > **注意**：若 logger 使用 Python repr 格式記錄 dict，key 和 value 會用**單引號**（`'path': '/api/...'`），parse 時注意引號格式。
 
-**第三層（可選）：Top errors 每日分布**
+### 第三層：殘餘 error 安全網
+
+排除前兩層已覆蓋的 pattern 後，檢查是否有漏網之魚。若結果為空，表示前兩層已完整覆蓋。
+
+```
+fields event, logger
+| filter level = "error"
+| filter event not like "{第一層使用的 filter 關鍵字}"
+| filter event not like "{config.backend_error_keywords.unhandled_exception}"
+| stats count(*) as cnt by logger
+| sort cnt desc
+| limit 20
+```
+
+> **如何使用**：將第一層和第二層的 `filter ... like` 條件轉為 `not like` 排除。若專案有其他高量已知 pattern（如特定 cache 操作失敗），追加 `filter event not like "..."` 排除，聚焦真正的未知殘餘。專案特定的排除清單可記錄在 `context.local.md`。
+
+> **常見發現**：timeout error、自訂 error class 等不走標準 error log 格式的訊息，會出現在特定 logger 下（如 `uvicorn.error`、框架 route handler logger）。這些是前兩層的覆蓋缺口，需進一步檢視是否包含需要關注的 error。
+
+> **注意**：CloudWatch Insights 的 `like` 是 case-sensitive。若某個 error 的 event 有大小寫變體（如 `occur ERROR` vs `occur error`），前兩層的 `filter event like` 只會抓到其中一個。此層能捕捉到被大小寫差異穿透的 error。
+
+### 第三·五層：Error Type 交叉驗證
+
+前三層依 event 格式分層，但同一種 error type 可能散落在多個 event 格式中（如 `ApimResponseError` 同時出現在 `occur ERROR` 和 `Exception in ASGI` 格式中）。此步驟跨 event 格式彙總 error type，找出被分層低估的碎片化 error。
+
+**Step A：確定 error type 欄位**
+
+優先順序：`config.error_type_field.{format}` → `context.local.md` 記錄 → 動態探索。
+
+若都沒有，取樣 3-5 筆 error log 找出 error type 存放位置：
+
+```
+fields @message
+| filter level = "error"
+| limit 5
+```
+
+常見位置：
+
+| 框架 | Error type 欄位 | 萃取方式 |
+|------|----------------|---------|
+| Python structlog | `exc_info` array 第一個元素 | `parse exc_info.0 /\.(?<error_type>[A-Za-z]+)$/` |
+| FastAPI/uvicorn | `event` 字串內嵌 | `parse event /(?<error_type>[A-Za-z]+Error)/` |
+| Nuxt/pino | `err.type` 或 `err.message` | `parse @message /"type":"(?<error_type>[^"]+)"/` |
+
+首次偵測結果記入 `context.local.md`。
+
+**Step B：跨 event 格式彙總 error type**
+
+```
+fields event
+| filter level = "error"
+| parse {Step A 確定的欄位和 regex}
+| filter error_type != ""
+| stats count(*) as cnt by error_type
+| sort cnt desc
+| limit 20
+```
+
+**交叉驗證**：比對 Step B 的 error type count 與前三層各 event 格式的 count。若某 error type 的彙總 count 遠大於前三層任一格式的 count → 該 error type 碎片化散落，前三層低估了它的量體。這個差距是 Scan 5 分級的重要輸入。
+
+**條件式 trace 去重**：若 `config.trace_id` 已設定，對 top 3 error type 執行 trace-based 去重（查詢模式見 `references/query-basics.md`「Trace-Based 去重」），得出 double-logging 倍率，報告以 unique requests 為基準。未設定 `config.trace_id` 時跳過此步驟。
+
+**第四層（可選）：Top errors 每日分布**
 
 對 Scan 1 第一、二層的 **top 3** error 加跑時間分布，提早區分「慢性問題」vs「事件爆發」：
 
@@ -110,30 +176,68 @@ fields @timestamp, event, logger
 
 ---
 
-## Scan 2: 前端 error 彙總
+## Scan 1.5: Tasks 獨立分析
 
-> 以下查詢基於 Nuxt SSR（pino logger）的 JSON 格式。其他 SSR 框架的 log 結構可能不同，請先用 Scan 1 Step 0 的探索方式了解你的前端 error 分布，再依實際格式調整查詢。
+**觸發條件**：`config.log_formats` 中同一格式有 2+ 個 log group 時（如 api + tasks 都是 `python_structlog`）。不符合則跳過。
 
-前端錯誤分兩類，分別查：
-
-**A. HTTP 呼叫失敗（有 statusCode）**
-
-`err.data.statusCode` 是巢狀 JSON，無法直接欄位 filter，改用 `@message like` + `parse`：
+Scan 1 合併查詢所有同格式 log group，效率高但小 log group 的 pattern 被大 log group 蓋過。此步驟對非主要 log group（如背景任務 tasks）單獨查 error 分布。
 
 ```
-fields @timestamp, namespace, @message
+fields event, logger
 | filter level = "error"
-| filter @message like /"statusCode":5/
+| parse {config.error_type_field 對應的欄位和 regex}
+| stats count(*) as cnt by error_type, event
+| sort cnt desc
+| limit 20
+```
+
+> 只對 tasks log group 查詢（從 `config.log_formats` 中排除主要 API log group）。
+
+**判讀**：
+- Tasks 出現但 API 沒出現的 error type → tasks 專屬問題（如排程任務 data sync 失敗、專屬 404）
+- Tasks 和 API 都出現同一 error type 但比例不同 → 拆分貢獻比（如 cache 失敗有多少 % 來自 tasks）
+- Tasks error 數量級遠小於 API → 簡要記錄即可
+
+---
+
+## Scan 2: 前端 error 彙總
+
+> 以下查詢基於 Nuxt SSR（pino logger）的 JSON 格式。其他 SSR 框架的 log 結構可能不同，請先用探索查詢了解你的前端 log 分布，再依實際格式調整。
+
+### Step 0：探索前端 level 分布（必要步驟）
+
+前端 logger（如 pino）的 level 分配與後端不同——許多 4xx/5xx 回應可能記錄在 `level = "info"` 而非 `level = "error"`。先確認 level 分布，避免只查 `error` 而漏掉大量 HTTP 錯誤：
+
+```
+fields level
+| stats count(*) as cnt by level
+| sort cnt desc
+```
+
+確認 `error` 有多少筆、是否存在 `warn`、是否有空值 level。此分布決定後續查詢策略。
+
+### A. HTTP 錯誤彙總（主要查詢 — 以 statusCode 為主）
+
+`err.data.statusCode` 是巢狀 JSON，無法直接欄位 filter，改用 `@message like` + `parse`。此查詢**不限 level**，能同時看到所有 level 下的 4xx/5xx：
+
+```
+fields @timestamp, level, namespace, @message
+| filter @message like /"statusCode":4/ or @message like /"statusCode":5/
 | parse @message /"statusCode":(?<status_code>\d+)/
 | parse @message /"namespace":"(?<svc>[^"]+)"/
-| stats count() as cnt by status_code, svc
+| stats count(*) as cnt by level, status_code, svc
 | sort cnt desc
 | limit 30
 ```
 
-**B. 純前端 / Node.js 錯誤（無 statusCode）**
+從結果判讀：
+- 哪些 5xx 是 error level（真正的 server error）
+- 哪些 4xx 是 info level（可能是噪音，如 404 爬蟲）
+- 504 有多少筆（對應後端 timeout 的前端反射，與 Scan 1 交叉比對）
 
-包含：Nuxt middleware 錯誤、Node.js runtime 例外、OIDC 流程錯誤、FetchError、全域錯誤捕捉器記錄的 API 錯誤等：
+### B. 非 HTTP 錯誤（補充查詢 — 以 level 為主）
+
+捕捉沒有 statusCode 的純前端 error：Node.js runtime exception、OIDC 流程錯誤、FetchError、全域錯誤捕捉器記錄等：
 
 ```
 fields @timestamp, namespace, @message
@@ -145,19 +249,7 @@ fields @timestamp, namespace, @message
 | limit 30
 ```
 
-**非 5xx 的前端 error（SDK 異常、timeout 等）：**
-
-```
-fields @timestamp, namespace, @message
-| filter level = "error"
-| filter @message not like /"statusCode":4/
-| parse @message /"msg":"(?<err_msg>[^"]+)"/
-| stats count() as cnt by namespace, err_msg
-| sort cnt desc
-| limit 30
-```
-
-**加查 warn（視情況）：**
+### 加查 warn（視情況）
 
 ```
 fields @timestamp, namespace, @message
@@ -168,7 +260,7 @@ fields @timestamp, namespace, @message
 | limit 30
 ```
 
-> **注意**：若前端有全域錯誤捕捉器，該模組捕捉的錯誤通常是後端 4xx/5xx 的反射。計算時注意與後端 error log 去重，避免重複計算。
+> **注意**：若前端有全域錯誤捕捉器，該模組捕捉的錯誤通常是後端 4xx/5xx 的反射。計算時注意與 Scan 1 後端 error log 和 A 查詢的 statusCode 結果去重，避免重複計算。
 
 ---
 
@@ -299,23 +391,28 @@ aws athena get-query-results \
 
 **此步驟是掃描與深入分析的橋樑。不要跳過直接寫報告。**
 
-綜合 Scan 1-4 的彙總結果，依以下標準篩選需要深入分析的問題：
+綜合 Scan 1-4 的彙總結果，依 **business impact**（不是 raw count）篩選需要深入分析的問題。Count 高不等於嚴重，count 低不等於安全——3,564 筆 DataError 使用者完全無感（cache miss 靜默降級），170 筆 504 卻讓使用者看到白屏。
 
 **🔴 高（必須深入）：**
+- 使用者可見影響：前端 5xx、頁面空白、功能失效（full-stack error）
 - 5xx 連鎖反應（一個服務 503 導致下游多個 endpoint 500）
 - `target_status_code = '-'`（container crash）
-- 新出現的 error pattern（過去報告中未見過）
-- 有使用者可見影響（前端 500、頁面空白、功能失效）
+- 資料完整性受損：寫入失敗、cache 靜默失效、資料不一致
+- 新出現的 error pattern（過去報告中未見過）且趨勢上升
 
 **🟡 中（應該深入）：**
-- 彙總 count 前三名的 error 類型
-- `target_processing_time > 10s` 的慢請求
+- 影響核心功能或核心 user journey 的 error（不論 count 高低）
+- 本週新出現或量體暴增（相對上期 2x+）的 error pattern
+- `target_processing_time > 10s` 的慢請求（影響使用者等待體驗）
 - 前後端同時出現的相關錯誤（同一功能的前端 5xx + 後端 error）
+- Error type 交叉驗證（第三·五層）中碎片化散落、涉及核心功能的 error type
+- Tasks 獨立分析（Scan 1.5）中發現的 tasks 專屬 error pattern（影響資料同步或排程任務可靠性）
 
 **⚪ 低（記錄但不深入）：**
 - 已知雜訊（爬蟲、掃描流量，見 Scan 3）
 - 已在 `references/known-patterns.md` 或 `context.local.md`（若存在）中標記為「正常行為」的項目
 - 數量穩定且無增長趨勢的既有 error
+- backend_only 且不影響資料完整性的 error（如下游服務偶發 timeout，有 retry 機制）
 
 **對每個 🔴 高/🟡 中 問題，執行調查工具箱（`references/investigation-toolkit.md`）取得：**
 - 具體的 trace 時序（T2）

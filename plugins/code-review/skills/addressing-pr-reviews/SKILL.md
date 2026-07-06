@@ -1,7 +1,6 @@
 ---
 name: addressing-pr-reviews
 argument-hint: [PR 編號]
-version: 0.1.0
 description: >-
   處理 GitHub PR review 留言的完整回覆工作流：列出未解決/未回覆的 review threads、
   逐則查證留言宣稱是否屬實、分類決定採納或反駁、先回覆預計做法、修正 push 後附
@@ -9,8 +8,8 @@ description: >-
   確認 review 留言是否合理、resolve conversation、修正 review 指出的問題、
   回 reviewer 或 Copilot/AI reviewer 留言時使用——
   即使只說「處理一下 PR 上的 review」也應觸發。
-  與 reviewing-pull-request 的區別：本 skill 處理「收到的」review 留言，
-  reviewing-pull-request 是「發出」review。
+  與 review skill 的區別：本 skill 處理「收到的」review 留言，
+  review skill 是「發出」review。
   不確定是否該觸發時，傾向觸發。
 allowed-tools:
   - Read
@@ -48,6 +47,15 @@ allowed-tools:
 7. 「完成回覆 + resolve」
 8. 「收尾回報」
 
+待處理 threads 數量 ≤ 3 時可略過任務清單，直接執行 Step 0-7。
+
+## 委派原則
+
+threads 數量多、且查證與分類（Step 2-3）已完成時，Step 5-6 的機械執行（修正、push、
+逐則回覆）可交給 subagent 執行，節省主對話 context；查證與分類需要的判斷留在主對話，
+不下放給 subagent。委派執行時，回覆署名要用實際執行修正與回覆的模型行銷名稱（可能是
+subagent 使用的模型，不一定與主對話模型相同），格式見「回覆撰寫原則」。
+
 ## Step 0：確認 PR 編號
 
 PR 編號： $ARGUMENTS
@@ -64,6 +72,12 @@ isOutdated、留言全文、作者。
 - `isResolved == false` → 列入待處理
 - thread 最後一則留言作者不是 PR author（也不是自己）→ 視為「未回覆」
 - 已回覆但未 resolve → 仍列入，只差 resolve 步驟
+- thread 留言者是 PR author 自己（例如用自己帳號跑 AI review 工具發的留言）→ 不能因為
+  「作者是自己」就判定為已處理，一樣以 `isResolved == false` 且無後續處理回覆為準列入待處理
+
+除了 review threads，一併用 GraphQL 撈出 review 總覽 body（reviews 的 `body` 欄位，
+不是 thread 留言）。檢查總覽 body 有無誤引 PR 內容或需要澄清之處——總覽 body 沒有
+thread 可掛，無法套用後續回覆/resolve 工作流，發現問題時提示使用者自行決定怎麼處理。
 
 ## Step 2：逐則查證（最重要的一步）
 
