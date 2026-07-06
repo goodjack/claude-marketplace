@@ -173,7 +173,7 @@ git diff "origin/${UPSTREAM#origin/}...HEAD"
 - 🔴 **MUST**（嚴重問題）：安全漏洞、正確性錯誤（資料遺失、邏輯錯誤）、穩定性問題、違反團隊明確規範
 - 🟠 **SHOULD**（需要改進）：可維護性（重複邏輯、過深巢狀）、非關鍵路徑的穩健性、非關鍵效能問題（如 N+1 query）、業界最佳實踐
 - 🔵 **MAY**（建議優化）：超出 linter 範圍的風格偏好、無明確優劣的替代方案。按價值排序，最多列出 5 個，超過在摘要標註「另有 N 個同類建議」
-- 🟣 **PRE-EXISTING**（既有問題）：用 `git blame` 確認問題程式碼在 diff 之外已存在，標記為 PRE-EXISTING 而非 MUST/SHOULD。PR review 表示「非此 PR 引入」；local review 表示「既有問題，考慮一併修正」
+- 🟣 **PRE-EXISTING**（既有問題，附加標記）：用 `git blame` 確認問題程式碼在 diff 之外已存在後**附加**此標記——嚴重度仍依問題本身標為 MUST/SHOULD/MAY，PRE-EXISTING 只註記來源，與嚴重度並存、不取代（否則高嚴重度的既有問題會被遮蔽，例如既有的 MUST 級安全漏洞只剩紫色標記）。PR review 表示「非此 PR 引入」；local review 表示「既有問題，考慮一併修正」
 
 決策樹：可能導致錯誤結果或安全風險？→ MUST。團隊有明確規範？→ MUST。6 個月後會讓人踩坑？→ SHOULD。只是「我覺得另一種寫法更好」？→ MAY。
 
@@ -230,7 +230,7 @@ gh api repos/OWNER/REPO/pulls/NUMBER/reviews --input - <<'EOF'
 {
   "event": "COMMENT",
   "commit_id": "階段 2 記錄的 headRefOid",
-  "body": "（若有 merge conflict）⚠️ 此 PR 有 merge conflict，review 基於 PR branch。\n\n---\n\n共發現 N 個回饋：\n\n**嚴重問題** (X)\n- {主題emoji} 標題1\n\n**需要改進** (Y)\n- {主題emoji} 標題2\n\n**既有問題** (Z)\n- {主題emoji} 標題3\n\n<sub>🤖 Reviewed by {模型名稱} · code-review v{plugin 版本}</sub>",
+  "body": "（若有 merge conflict）⚠️ 此 PR 有 merge conflict，review 基於 PR branch。\n\n---\n\n共發現 N 個回饋（其中 Z 個為既有問題 PRE-EXISTING）：\n\n**嚴重問題** (X)\n- {主題emoji} 標題1\n\n**需要改進** (Y)\n- {主題emoji} 標題2（PRE-EXISTING）\n\n**建議優化** (W)\n- {主題emoji} 標題3\n\n<sub>🤖 Reviewed by {模型名稱} · code-review v{plugin 版本}</sub>",
   "comments": [
     {
       "path": "file.py",
@@ -248,6 +248,8 @@ Badge URL：
 - 🟠 SHOULD → `https://img.shields.io/badge/需要改進%20SHOULD-orange?style=for-the-badge`
 - 🔵 MAY → `https://img.shields.io/badge/建議優化%20MAY-blue?style=for-the-badge`
 - 🟣 PRE-EXISTING → `https://img.shields.io/badge/既有問題%20PRE--EXISTING-purple?style=for-the-badge`
+
+既有問題（PRE-EXISTING）是附加標記，不是嚴重度等級：該 comment 仍先放上述嚴重度 badge，再於其後接上既有問題 badge 並存，不取代嚴重度。
 
 技術細節：
 - `commit_id` 使用階段 2 記錄的 `headRefOid`（不是 `baseRefOid`）
@@ -273,19 +275,17 @@ EOF
 ```
 ## 審查結果
 
-共發現 N 個回饋：
+共發現 N 個回饋（其中 W 個為既有問題 PRE-EXISTING）：
 
 ### 🔴 嚴重問題 (X)
 1. **標題** — `file.py:10`
    說明 + 建議
 
 ### 🟠 需要改進 (Y)
-...
+1. **標題（PRE-EXISTING）** — `legacy.py:42`
+   說明 + 建議
 
 ### 🔵 建議優化 (Z)
-...
-
-### 🟣 既有問題 (W)
 ...
 
 ```
