@@ -17,6 +17,11 @@
       "name": "aws-investigate",
       "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷",
       "source": "./plugins/aws-investigate"
+    },
+    {
+      "name": "writing-style",
+      "description": "文件與長回覆的寫作風格指南——掃讀文體、結構選擇、反壓縮條款、中文行文慣例、AI 產出常見問題",
+      "source": "./plugins/writing-style"
     }
   ]
 }

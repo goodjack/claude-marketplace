@@ -1,0 +1,18 @@
+{
+  "description": "台灣用語檢查：Edit/Write 後掃描目標檔案中的中國用語，以 additionalContext 提醒模型修正（advisory 不阻擋，刻意引用情境由模型判斷）",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-tw-terms-hook.sh",
+            "timeout": 15,
+            "statusMessage": "台灣用語檢查中"
+          }
+        ]
+      }
+    ]
+  }
+}

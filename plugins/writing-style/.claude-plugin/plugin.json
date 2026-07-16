@@ -1,0 +1,8 @@
+{
+  "name": "writing-style",
+  "version": "1.0.0",
+  "description": "文件與長回覆的寫作風格指南——掃讀文體、結構選擇、反壓縮條款、中文行文慣例、AI 產出常見問題；附台灣用語檢查 hook（Edit/Write 後自動掃描中國用語）",
+  "author": {
+    "name": "goodjack"
+  }
+}
