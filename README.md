@@ -49,9 +49,9 @@ AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設�
 
 ## 版號管理
 
-每個 plugin 的 `plugin.json` 都有 `version` 欄位，遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。發版流程：
+每個 plugin 的 `plugins/<name>/.claude-plugin/plugin.json` 都有 `version` 欄位，遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。發版流程：
 
-1. 更新 `plugin.json` 的 `version`
+1. 更新 `plugins/<name>/.claude-plugin/plugin.json` 的 `version`
 2. Commit & merge 到 main
 3. 在 plugin 目錄下執行 `claude plugin tag --push`
 
