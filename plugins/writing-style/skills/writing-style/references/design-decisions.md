@@ -103,7 +103,7 @@
 | 術語處理階梯（能換就換 → 保留＋首次說明 → 大型文件才建 glossary） | [Google: Jargon](https://developers.google.com/style/jargon)、[Microsoft: Use technical terms carefully](https://learn.microsoft.com/en-us/style-guide/word-choice/use-technical-terms-carefully)、[GOV.UK Technical A–Z](https://guidance.publishing.service.gov.uk/writing-to-gov-uk-standards/style-guides/technical-a-to-z/) | 四份都反對把必要術語砍光。Google 明確把 searchability 列為保留術語的正當理由 |
 | 事件報告聚焦系統不聚焦個人，action item 要有 owner | [Google SRE Book: Postmortem Culture](https://sre.google/sre-book/postmortem-culture/) | 社群有「blame-aware」的修正意見，認為純 blameless 不符合人的實際反應 |
 | 標點規範 | 教育部《重訂標點符號手冊》修訂版（2009） | 台灣現行的官方標點規範。不採 GB/T 15834——兩岸的分號定義、引號、標點位置有落差 |
-| 摺疊區塊的使用時機 | GitHub Docs「Organizing information with collapsed sections」 | 平台差異見下節 |
+| 摺疊區塊的使用時機 | [GitHub Docs: Organizing information with collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections) | 平台差異見下節 |
 | 連結節制 | NN/g「A Link is a Promise」、[Google: Cross-references](https://developers.google.com/style/cross-references) | Google 現行立場是把連結放在最有用的位置；長頁面、多入口時可以重複。正文的「預設只連首次」已寫入這個例外 |
 | 一段一概念、不設固定句數 | [Google: Paragraph structure](https://developers.google.com/style/paragraph-structure) | 現行立場是一句或超過六句都可能合理。正文據此改用「一段一個推論單位」的可觀測判準 |
 | 認知可及性 | [W3C COGA: Making Content Usable](https://www.w3.org/TR/coga-usable/design_guide.html) 4.4.1、4.4.3、4.4.5、4.4.8、4.4.9、4.4.12 | 屬補充指引，不是 WCAG 強制條款 |
@@ -122,7 +122,7 @@
 | 「BLUF、inverted pyramid、Minto、GOV.UK 四個體系同向」 | 引用有誤 | HBR 2016 原文只提 BLUF 與 inverted pyramid 相似，沒提 Minto。Minto 的核心是歸納／演繹論證階層，跟純重要性排序不同 |
 | 用 Diátaxis 當「讀者範圍」的分層依據 | 接錯軸 | Diátaxis 分的是讀者當下的需求情境（學習／解決問題／查閱／理解），不是讀者身份或知識程度 |
 | Jansen (2014) 的 bullet 研究可當無條件通則 | 過度簡化 | 原文是五個分研究的有條件結果：三個發現 bullet 有助清單記憶（項目異質時效果減弱）、兩個發現傷及周邊段落記憶，但讀者對文章整體評價反而更好 |
-| Bionic Reading 式加粗（每個字前半段加粗） | 不採用 | 2024-2025 多篇對照研究（含眼動追蹤）未發現速度或理解上的效益，部分研究另觀察到負面效果。泛稱「標記關鍵字有助聚焦」則屬社群主流、無直接對照實驗 |
+| Bionic Reading 式加粗（每個字前半段加粗） | 不採用 | 2024-2025 多篇對照研究（含眼動追蹤）未發現速度或理解上的效益，例如 [Acta Psychologica 2024](https://www.sciencedirect.com/science/article/pii/S0001691824001811)，部分研究另觀察到負面效果。泛稱「標記關鍵字有助聚焦」則屬社群主流、無直接對照實驗 |
 | 用 WCAG 2.2 SC 3.1.5 Reading Level 當硬門檻 | 不採用 | 它是 web 的 AAA 條款，對一般文件過嚴；COGA 的條目對本 skill 更直接 |
 | 讀者可讀性分數（Flesch-Kincaid 之類）當通過標準 | 不採用 | 屬工具與顧問慣例，非 plainlanguage.gov／GOV.UK 的規定；量化門檻容易變成新的形式主義 |
 
@@ -137,9 +137,9 @@
 
 ## 其他出處
 
-- NN/g「Inverted Pyramid」「How Users Read on the Web」「How Little Do Users Read?」；Jansen (2014), *Information Design Journal* 21(2)
+- NN/g「Inverted Pyramid」「How Users Read on the Web」「How Little Do Users Read?」；[Jansen (2014), *Information Design Journal* 21(2)](https://www.jbe-platform.com/content/journals/1569979x/21/2)
 - BLUF（美軍慣例，HBR 2016 推廣）
 - Axios Smart Brevity（商業 update 的掃讀體）；批評見 Columbia Journalism Review 與 New Republic：複雜議題會被扁平化、脈絡流失
 - Federal Plain Language Guidelines（資料進表格，內文只留一兩項）
 - Diátaxis（文件分型，屬資訊架構層）
-- 關於 LLM 寫作的兩項實證，用來支撐「掃讀但不失真」：LLM 摘要出現廣泛概化的比率高於人類科學摘要（Peters & Chin-Yee, 2025, *Royal Society Open Science*，4,900 份摘要、10 個模型，odds ratio 4.85；適用範圍限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（arXiv 2312.02065）
+- 關於 LLM 寫作的兩項實證，用來支撐「掃讀但不失真」：LLM 摘要出現廣泛概化的比率高於人類科學摘要（Peters & Chin-Yee, 2025, *Royal Society Open Science*，4,900 份摘要、10 個模型，odds ratio 4.85，[DOI](https://doi.org/10.1098/rsos.241776)；適用範圍限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（[arXiv 2312.02065](https://arxiv.org/abs/2312.02065)）
