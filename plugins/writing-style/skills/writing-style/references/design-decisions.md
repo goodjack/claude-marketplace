@@ -8,7 +8,7 @@
 
 1. **覆核這個 skill 時的規則**——四類正當性來源各自能改什麼、重開條件。
 2. **設計決策 WS-D01～D06**——不可因外部依據變動而改。
-3. **混合型決策 WS-M01～M06**——行為目標不可動，實作細節（數字、門檻）可調。
+3. **混合型決策 WS-M01～M07**——行為目標不可動，實作細節（數字、門檻）可調。
 4. **外部依據**——可依新證據修改。
 5. **已否決的主張**——不得因為在寫作圈流行就加回。
 6. **平台與渲染細節**。
@@ -110,6 +110,7 @@
 | WS-M04 | 先認定讀者，再決定機制要解釋到多深 | 讀者分類方式 | plain language「write for your audience」 |
 | WS-M05 | 縮寫與代號首次出現附意義 | 豁免清單 | Google／Microsoft 縮寫規範 |
 | WS-M06 | 跨文件引用要說明目前狀態，不只丟連結 | 狀態聲明的格式 | W3C「Status of This Document」慣例（**類比**，不是直接證據——該慣例規範的是 W3C 規格文件，不是一般跨文件引用） |
+| WS-M07 | 長篇報告要讓不同閱讀深度的人都拿到核心資訊：執行摘要能脫離全文獨立閱讀，非必要的查證材料不擋在正文 | 是否設附錄、各層名稱、摘要長度 | 現行工程報告慣例（[IEEE: Write Effective Reports](https://procomm.ieee.org/communication-resources-for-engineers/written-reports/write-effective-reports/)）區分 executive summary、body、appendices，是最直接的支持。**ISO 5966 已於 2000 年撤銷**，只能當歷史來源，不可當現行標準引用。IEEE 只說執行摘要最長約可到全文 10%，「5–10%」是誤植，本 skill 不寫死比例。[Minto](https://www.barbaraminto.com/) 支持的是「主要結論在上、支持論點在下，上層概括其下層論點」的**論點階層**，不直接主張「同一份文件分層服務不同角色」，兩者不要混為一談。PNAS 的三層規範（Significance Statement 120 字給大眾、Abstract 給同行、全文）是少數有明文字數的案例，可參考不可外推 |
 
 這批來自實際文件的讀者回饋，使用者已採納修正。**注意**：採納「不可為了短而刪內容」不等於凍結所有相關數字——20 字、40 字這類實作數字不在保護範圍。
 
@@ -132,7 +133,6 @@
 | 教學先讓讀者動手、背景不擋路 | [Diátaxis: Tutorials](https://diataxis.fr/tutorials/)、[Google: Procedures](https://developers.google.com/style/procedures) | **不是無條件追求步驟最少**。[DITA task elements](https://docs.oasis-open.org/dita/v1.1/OS/langspec/common/task2.html) 與 [Write the Docs](https://www.writethedocs.org/guide/writing/docs-principles/) 支持把真正必要的 prerequisite 放在操作之前。查過 Google、Microsoft、DITA、Diátaxis、W3C，**沒有**任何一家主張完整詞彙表該放教學前面 |
 | 一個步驟對應一個讀者決定 | [Google: Procedures](https://developers.google.com/style/procedures)、[Microsoft: Step-by-step instructions](https://learn.microsoft.com/en-us/style-guide/procedures-instructions/writing-step-by-step-instructions) | 兩家都允許把同一操作位置上的小動作合併，也允許步驟附帶必要結果或理由。**「每個項目只能含單一資訊」會過度切碎**，不是共識 |
 | 連結節制 | NN/g「A Link is a Promise」、[Google: Cross-references](https://developers.google.com/style/cross-references) | Google 現行立場是把連結放在最有用的位置；長頁面、多入口時可以重複。正文的「預設只連首次」已寫入這個例外 |
-| 長篇報告分層服務不同深度的讀者 | Minto Pyramid Principle；工程技術報告結構（ISO 5966、[IEEE](https://procomm.ieee.org/communication-resources-for-engineers/written-reports/write-effective-reports/)） | 做法是 Executive Summary → Body → Appendix。Minto 的核心規則是「上層永遠是下層的摘要」，讀者可在任何深度停止而不漏核心訊息；工程報告慣例是摘要佔全文 5–10%、且必須能脫離全文獨立閱讀（不是前言）。PNAS 另有明文字數的三層規範（Significance Statement 120 字給大眾、Abstract 給同行、全文）。**分層還是拆文件**：資訊本質相同只是深淺不同就分層；讀者要做的事本質不同（決策 vs 執行 vs 理解）就拆文件。Diátaxis 主張一份文件只服務一種需求，但它分的是認知模式（學習／動手／查找／理解），與這裡的角色深度是兩個維度，不互斥 |
 | 一段一概念、不設固定句數 | [Google: Paragraph structure](https://developers.google.com/style/paragraph-structure) | 現行立場是一句或超過六句都可能合理。正文據此改用「一段一個推論單位」的可觀測判準 |
 | 認知可及性 | [W3C COGA: Making Content Usable](https://www.w3.org/TR/coga-usable/design_guide.html) 4.4.1、4.4.3、4.4.5、4.4.8、4.4.9、4.4.12 | 屬補充指引，不是 WCAG 強制條款 |
 
@@ -147,7 +147,7 @@
 | 任何固定的段落句數上限 | 不採用 | 沒有可靠來源支持單一數字，且會製造「為了符合形式而過度壓縮」的問題。改用「一段一個推論單位」的可觀測判準 |
 | 「中文一句 20 字內最佳、40 字是上限」 | 查無來源 | 只找得到零星部落格的「15-25 字」建議，無學術或官方來源。改用可觀測的重讀觸發器取代字數門檻 |
 | 「破折號堆疊是 AI 生成特徵」 | 降級為弱訊號 | 屬流行認知，會誤傷本來就慣用破折號的作者。破折號限量的理由改用可讀性（過量或關係不明會妨礙理解） |
-| 「BLUF、inverted pyramid、Minto、GOV.UK 四個體系同向」 | 引用有誤 | HBR 2016 原文只提 BLUF 與 inverted pyramid 相似，沒提 Minto。Minto 的核心是歸納／演繹論證階層，跟純重要性排序不同。**否決的是「四體系同向」這個宣稱，不是 Minto 本身**——Minto 在「同一份文件分層服務不同角色」這個用途上是有效來源，見 WS-D07 |
+| 「BLUF、inverted pyramid、Minto、GOV.UK 四個體系同向」 | 引用有誤 | HBR 2016 原文只提 BLUF 與 inverted pyramid 相似，沒提 Minto。Minto 的核心是歸納／演繹論證階層，跟純重要性排序不同。**否決的是「四體系同向」這個宣稱，不是 Minto 本身**——Minto 在「主要結論在上、上層概括其下層論點」這個論點階層的用途上仍是有效來源（見 WS-M07）。但它不直接支持「分層服務不同角色」，那是本地延伸 |
 | 用 Diátaxis 當「讀者範圍」的分層依據 | 接錯軸 | Diátaxis 分的是讀者當下的需求情境（學習／解決問題／查閱／理解），不是讀者身份或知識程度 |
 | Jansen (2014) 的 bullet 研究可當無條件通則 | 過度簡化 | 原文是五個分研究的有條件結果：三個發現 bullet 有助清單記憶（項目異質時效果減弱）、兩個發現傷及周邊段落記憶，但讀者對文章整體評價反而更好 |
 | Bionic Reading 式加粗（每個字前半段加粗） | 不採用 | 2024-2025 多篇對照研究（含眼動追蹤）未發現速度或理解上的效益，例如 [Acta Psychologica 2024](https://www.sciencedirect.com/science/article/pii/S0001691824001811)，部分研究另觀察到負面效果。泛稱「標記關鍵字有助聚焦」則屬社群主流、無直接對照實驗 |
