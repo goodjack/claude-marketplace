@@ -2,7 +2,19 @@
 
 本檔記錄 `SKILL.md` 各條規則的**正當性來源**：哪些是本 skill 的設計決策、哪些從外部依據推導、哪些查過但不採用。
 
-四區依「可動範圍」排序：**設計決策**（不可因外部依據變動而改）→ **混合型決策**（行為目標不可動、實作細節可調）→ **外部依據**（可依新證據修改）→ **已否決的主張**（不得因為在寫作圈流行就加回）。文末另有平台渲染細節與出處。
+## 目錄
+
+依「可動範圍」由嚴到寬排序：
+
+1. **覆核這個 skill 時的規則**——四類正當性來源各自能改什麼、重開條件。
+2. **設計決策 WS-D01～D07**——不可因外部依據變動而改。
+3. **混合型決策 WS-M01～M06**——行為目標不可動，實作細節（數字、門檻）可調。
+4. **外部依據**——可依新證據修改。
+5. **已否決的主張**——不得因為在寫作圈流行就加回。
+6. **平台與渲染細節**。
+7. **句子層細則的證據身分**——`SKILL.md` 與 `examples.md` 那六條的查證結果。
+
+同目錄另有 `examples.md`（語氣變體、正反例全集、AI 常犯問題的判斷細節）與 `taiwan-terms.md`（中國用語對照表）。
 
 ## 覆核這個 skill 時的規則
 
@@ -54,7 +66,7 @@
 
 - **狀態**：有效。
 - **正當性來源**：本 skill 的定位，不是外部 style guide 推導。
-- **不變條件**：不使用中國用語；技術名詞保留英文不硬翻。
+- **不變條件**：不使用中國用語；台灣工程實務慣用英文的詞不硬翻成生造中文。**這條保護的是用詞習慣，不豁免術語階梯**——保留英文之後，讀者不熟時一樣要補白話說明，需要搜尋或溝通時保留正式英文名稱。
 - **可調部分**：詞表內容（見 `taiwan-terms.md`）。
 
 ### WS-D04：目標讀者的實際回饋優先於通用指南
@@ -74,18 +86,38 @@
 - **與外部依據的關係**：四份 style guide 的術語處理階梯是做法來源與佐證，但這個結果要求不因外部 guide 更新而刪除。
 - **日期**：2026-07-27。
 
+### WS-D06：可見主線優先服務當前任務
+
+- **狀態**：有效。
+- **正當性來源**：實際使用回饋與本 skill 的設計需求。不是從 GitHub 的 `<details>` 文件推導——那份文件只支撐摺疊怎麼用，撐不起四類分流、處理順序與三項否決條件。
+- **不變條件**：可見主線優先服務讀者的當前任務；背景、例外與參考資料不得擋在必要判斷與最短成功路徑之前。
+- **可調部分**：四類分流的名稱與邊界、摺疊的條件、最長區塊抽查的數量。
+- **理由**：實跑一份導入教學時，局部規則全數合格（每項自我完整、每段一個推論單位、術語都有解釋），讀者仍回饋「字很多很難讀」。原因是內部機制與詞彙表擋在第一次成功之前——第一次實際操作到第 147 行才出現。規範原本只檢查每一段寫得好不好，沒有檢查這段現在該不該出現。
+- **外部依據的關係**：雙模型各自跑過 consensus 查證，結論一致——底層原則有支持（Diátaxis 的 tutorial 要先給可見成果並把 explanation 移出、DITA 的 task／concept／reference 分型、GOV.UK 要求內容回應實際使用者需求、W3C 要求非主要目的的內容與主線分離），但**四類分流本身沒有任何框架採用相同切法**，它混合了「內容用途」與「在當前流程的位置」兩條軸線。所以這是有理據的本地決策，不能宣稱它是 Diátaxis 或 DITA 的分類法。
+- **邊界**：「最短成功路徑」不等於無條件追求步驟最少。真正必要的 prerequisite 仍應放在操作之前（DITA、Write the Docs 立場），Diátaxis 的 tutorial 也是學習經驗而非最快完成任務。
+- **日期**：2026-07-27。
+
+### WS-D07：長篇分析報告採 3-30-300 分層
+
+- **狀態**：有效。
+- **正當性來源**：團隊慣例，不是寫作領域的通用共識。
+- **不變條件**：長篇分析報告提供三個閱讀深度——3 秒摘要、30 秒一頁總覽、300 秒完整分析。
+- **可調部分**：三層的命名與各層長度。
+- **理由**：同一份報告的讀者閱讀深度差異大，主管只看摘要、執行者要看完整分析。
+- **外部依據的關係**：與 inverted pyramid、漸進揭露同向，但「3-30-300」這個具體分層是本地慣例，外部查無此名稱。
+
 ## 混合型決策
 
 行為目標是本地採納的設計決策，外部資料只是佐證。**行為目標不可因外部依據變動而改；實作細節（數字、門檻）可調。**
 
 | 編號 | 行為目標（不可動） | 可調部分 | 佐證 |
 | --- | --- | --- | --- |
-| WS-M01 | 不可為了短而刪掉理解所需的內容 | 具體的重讀觸發器怎麼寫 | plain language 系原則；W3C COGA 4.4.9、4.4.12 |
+| WS-M01 | 不可為了短而刪掉理解所需的內容 | 具體的重讀觸發器怎麼寫 | plain language 系原則；W3C COGA 4.4.9、4.4.12；LLM 摘要出現廣泛概化的比率高於人類科學摘要（[Peters & Chin-Yee, 2025](https://doi.org/10.1098/rsos.241776)，4,900 份摘要、10 個模型，odds ratio 4.85；限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（[arXiv 2312.02065](https://arxiv.org/abs/2312.02065)） |
 | WS-M02 | 「一句一事」限制的是主張數量，不是字數 | 判斷主張數量的提示 | 同上 |
 | WS-M03 | 說明型條列每項自我完整，不逼讀者回查前文 | 例外情境 | COGA「不依賴記憶」目標 |
 | WS-M04 | 先認定讀者，再決定機制要解釋到多深 | 讀者分類方式 | plain language「write for your audience」 |
 | WS-M05 | 縮寫與代號首次出現附意義 | 豁免清單 | Google／Microsoft 縮寫規範 |
-| WS-M06 | 跨文件引用要說明目前狀態，不只丟連結 | 狀態聲明的格式 | W3C「Status of This Document」慣例 |
+| WS-M06 | 跨文件引用要說明目前狀態，不只丟連結 | 狀態聲明的格式 | W3C「Status of This Document」慣例（**類比**，不是直接證據——該慣例規範的是 W3C 規格文件，不是一般跨文件引用） |
 
 這批來自實際文件的讀者回饋，使用者已採納修正。**注意**：採納「不可為了短而刪內容」不等於凍結所有相關數字——20 字、40 字這類實作數字不在保護範圍。
 
@@ -103,7 +135,10 @@
 | 術語處理階梯（能換就換 → 保留＋首次說明 → 大型文件才建 glossary） | [Google: Jargon](https://developers.google.com/style/jargon)、[Microsoft: Use technical terms carefully](https://learn.microsoft.com/en-us/style-guide/word-choice/use-technical-terms-carefully)、[GOV.UK Technical A–Z](https://guidance.publishing.service.gov.uk/writing-to-gov-uk-standards/style-guides/technical-a-to-z/) | 四份都反對把必要術語砍光。Google 明確把 searchability 列為保留術語的正當理由 |
 | 事件報告聚焦系統不聚焦個人，action item 要有 owner | [Google SRE Book: Postmortem Culture](https://sre.google/sre-book/postmortem-culture/) | 社群有「blame-aware」的修正意見，認為純 blameless 不符合人的實際反應 |
 | 標點規範 | 教育部《重訂標點符號手冊》修訂版（2009） | 台灣現行的官方標點規範。不採 GB/T 15834——兩岸的分號定義、引號、標點位置有落差 |
-| 摺疊區塊的使用時機 | [GitHub Docs: Organizing information with collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections) | 平台差異見下節 |
+| 摺疊區塊的語法與基本用法 | [GitHub Docs: Organizing information with collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections) | 只支撐「怎麼用」。本 skill 的四類分流、處理順序與三項否決條件屬 WS-D06，不是從這份文件推導 |
+| 重要資訊不得藏在摺疊裡 | [NN/g: Accordions on Desktop](https://www.nngroup.com/articles/accordions-on-desktop/)、[GOV.UK Details](https://design-system.service.gov.uk/components/details/)、[GOV.UK Accordion](https://design-system.service.gov.uk/components/accordion/) | NN/g：「Avoid hiding any crucial information within the collapsed panels」。GOV.UK 更嚴：details 只適合部分使用者需要的資訊；所有人都需要的內容應該先試簡化或拆頁，不是收合 |
+| 教學先讓讀者動手、背景不擋路 | [Diátaxis: Tutorials](https://diataxis.fr/tutorials/)、[Google: Procedures](https://developers.google.com/style/procedures) | **不是無條件追求步驟最少**。[DITA task elements](https://docs.oasis-open.org/dita/v1.1/OS/langspec/common/task2.html) 與 [Write the Docs](https://www.writethedocs.org/guide/writing/docs-principles/) 支持把真正必要的 prerequisite 放在操作之前。查過 Google、Microsoft、DITA、Diátaxis、W3C，**沒有**任何一家主張完整詞彙表該放教學前面 |
+| 一個步驟對應一個讀者決定 | [Google: Procedures](https://developers.google.com/style/procedures)、[Microsoft: Step-by-step instructions](https://learn.microsoft.com/en-us/style-guide/procedures-instructions/writing-step-by-step-instructions) | 兩家都允許把同一操作位置上的小動作合併，也允許步驟附帶必要結果或理由。**「每個項目只能含單一資訊」會過度切碎**，不是共識 |
 | 連結節制 | NN/g「A Link is a Promise」、[Google: Cross-references](https://developers.google.com/style/cross-references) | Google 現行立場是把連結放在最有用的位置；長頁面、多入口時可以重複。正文的「預設只連首次」已寫入這個例外 |
 | 一段一概念、不設固定句數 | [Google: Paragraph structure](https://developers.google.com/style/paragraph-structure) | 現行立場是一句或超過六句都可能合理。正文據此改用「一段一個推論單位」的可觀測判準 |
 | 認知可及性 | [W3C COGA: Making Content Usable](https://www.w3.org/TR/coga-usable/design_guide.html) 4.4.1、4.4.3、4.4.5、4.4.8、4.4.9、4.4.12 | 屬補充指引，不是 WCAG 強制條款 |
@@ -132,14 +167,19 @@
 
 - CodiMD／HackMD、GitHub 與多數 IDE 預覽都支援。
 - **Notion**：貼上或匯入 Markdown 時會移除標籤，內容可能整段消失，不會變成 toggle。其 API 另有支援 details/summary，但貼上、匯入、API 是三條不同通路，不能互相外推。確定要貼到 Notion 的文件先展開，改用「存查材料後置＋文末附錄」。
-- **Firefox／Safari** 的頁內搜尋找不到摺疊內容。
-- 列印預設不含摺疊內容。
+- **頁內搜尋找得到（這是修正過的認知）**：[HTML Standard](https://html.spec.whatwg.org/multipage/interaction.html#interaction-with-details-and-hidden=until-found) 要求頁內搜尋能找到關閉的 `<details>` 並自動展開；Chrome 97、Firefox 與 Safari 26.2 都已實作。**「摺疊內容搜不到」對現代瀏覽器的原生 details 已不成立，不能再拿來當摺疊的否決條件。** Safari 曾有「展開但沒捲到結果」的問題，體驗仍可能不完整。
+- **`hidden="until-found"` 是另一套機制**，相容性資料互相矛盾：各家 release notes 說支援，Web Features Explorer 仍把 Firefox 與 Safari 標成未支援。目標環境要實測。
+- **列印**：展開與否沒有一致保證。
 
-## 其他出處
+## 句子層細則的證據身分
 
-- NN/g「Inverted Pyramid」「How Users Read on the Web」「How Little Do Users Read?」；[Jansen (2014), *Information Design Journal* 21(2)](https://www.jbe-platform.com/content/journals/1569979x/21/2)
-- BLUF（美軍慣例，HBR 2016 推廣）
-- Axios Smart Brevity（商業 update 的掃讀體）；批評見 Columbia Journalism Review 與 New Republic：複雜議題會被扁平化、脈絡流失
-- Federal Plain Language Guidelines（資料進表格，內文只留一兩項）
-- Diátaxis（文件分型，屬資訊架構層）
-- 關於 LLM 寫作的兩項實證，用來支撐「掃讀但不失真」：LLM 摘要出現廣泛概化的比率高於人類科學摘要（Peters & Chin-Yee, 2025, *Royal Society Open Science*，4,900 份摘要、10 個模型，odds ratio 4.85，[DOI](https://doi.org/10.1098/rsos.241776)；適用範圍限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（[arXiv 2312.02065](https://arxiv.org/abs/2312.02065)）
+`SKILL.md` 的「句子層細則」六條，證據強度不一，重寫時已依查證結果條件化：
+
+| 規則 | 證據身分 | 條件化的內容 |
+| --- | --- | --- |
+| 段落起手句給方向 | 部分支持 | [Google](https://developers.google.com/style/paragraph-structure) 支持重要資訊放段首，**不支持每段都要表態**。已改成分析論證先給主張、操作步驟先給動作、查閱型先給定義 |
+| 有具體事實就不用抽象概括 | 部分支持 | 原措辭「數字與實例是說服力的本體」過度絕對，會誘導補入沒有來源的數字。已加上「前提是那個事實你手上真的有」 |
+| 行動型文件收在下一步 | 本地慣例 | 不適用參考手冊、狀態紀錄與純說明文件。已限縮適用範圍 |
+| 譬喻節制 | 自創門檻已移除 | 「一篇最多一兩個」查無共識來源。[W3C COGA](https://www.w3.org/TR/coga-usable/) 與 [Google](https://developers.google.com/style/tone) 支持用字面、具體的語言並避免不必要的譬喻，但沒有數量門檻。已改成「只在能承擔解釋功能時用」 |
+
+另外兩條（需要判斷才附理由、校準語言）與 Google 的 procedures 與 tone 指引同向，未做限縮。
