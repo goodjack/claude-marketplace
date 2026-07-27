@@ -7,7 +7,7 @@
 依「可動範圍」由嚴到寬排序：
 
 1. **覆核這個 skill 時的規則**——四類正當性來源各自能改什麼、重開條件。
-2. **設計決策 WS-D01～D07**——不可因外部依據變動而改。
+2. **設計決策 WS-D01～D06**——不可因外部依據變動而改。
 3. **混合型決策 WS-M01～M06**——行為目標不可動，實作細節（數字、門檻）可調。
 4. **外部依據**——可依新證據修改。
 5. **已否決的主張**——不得因為在寫作圈流行就加回。
@@ -97,15 +97,6 @@
 - **邊界**：「最短成功路徑」不等於無條件追求步驟最少。真正必要的 prerequisite 仍應放在操作之前（DITA、Write the Docs 立場），Diátaxis 的 tutorial 也是學習經驗而非最快完成任務。
 - **日期**：2026-07-27。
 
-### WS-D07：長篇分析報告採 3-30-300 分層
-
-- **狀態**：有效。
-- **正當性來源**：團隊慣例。名稱與分層借自外部，套用到文字文件是本地延伸。
-- **不變條件**：長篇分析報告提供三個閱讀深度——3 秒摘要、30 秒一頁總覽、300 秒完整分析。
-- **可調部分**：三層的命名與各層長度。
-- **理由**：同一份報告的讀者閱讀深度差異大，主管只看摘要、執行者要看完整分析。
-- **外部依據的關係**：「3-30-300 rule」這個名稱在 BI 報表領域確實存在（[SQLBI](https://www.sqlbi.com/articles/introducing-the-3-30-300-rule-for-better-reports/)：3 秒看總覽、30 秒篩選、300 秒取得決策細節），概念源頭是 Shneiderman 1996 的 visual information-seeking mantra（overview first → zoom and filter → details-on-demand）。**但那是互動式儀表板，不是文字文件**，「3 秒」指看首頁而非讀執行摘要。把它套到報告寫作是本地延伸，外部來源不能直接當這條規則的依據。
-- **同名不同義**（避免日後誤引）：行銷的「3-30-3 rule」末段是 3 分鐘不是 300 秒；都市林業另有一個「3-30-300 rule」（看得到 3 棵樹、30% 樹冠率、300 公尺內有綠地），純數字巧合。Minto Pyramid Principle 與 executive summary 慣例都沒有定義具體秒數分層。
 
 ## 混合型決策
 
@@ -141,6 +132,7 @@
 | 教學先讓讀者動手、背景不擋路 | [Diátaxis: Tutorials](https://diataxis.fr/tutorials/)、[Google: Procedures](https://developers.google.com/style/procedures) | **不是無條件追求步驟最少**。[DITA task elements](https://docs.oasis-open.org/dita/v1.1/OS/langspec/common/task2.html) 與 [Write the Docs](https://www.writethedocs.org/guide/writing/docs-principles/) 支持把真正必要的 prerequisite 放在操作之前。查過 Google、Microsoft、DITA、Diátaxis、W3C，**沒有**任何一家主張完整詞彙表該放教學前面 |
 | 一個步驟對應一個讀者決定 | [Google: Procedures](https://developers.google.com/style/procedures)、[Microsoft: Step-by-step instructions](https://learn.microsoft.com/en-us/style-guide/procedures-instructions/writing-step-by-step-instructions) | 兩家都允許把同一操作位置上的小動作合併，也允許步驟附帶必要結果或理由。**「每個項目只能含單一資訊」會過度切碎**，不是共識 |
 | 連結節制 | NN/g「A Link is a Promise」、[Google: Cross-references](https://developers.google.com/style/cross-references) | Google 現行立場是把連結放在最有用的位置；長頁面、多入口時可以重複。正文的「預設只連首次」已寫入這個例外 |
+| 長篇報告分層服務不同深度的讀者 | Minto Pyramid Principle；工程技術報告結構（ISO 5966、[IEEE](https://procomm.ieee.org/communication-resources-for-engineers/written-reports/write-effective-reports/)） | 做法是 Executive Summary → Body → Appendix。Minto 的核心規則是「上層永遠是下層的摘要」，讀者可在任何深度停止而不漏核心訊息；工程報告慣例是摘要佔全文 5–10%、且必須能脫離全文獨立閱讀（不是前言）。PNAS 另有明文字數的三層規範（Significance Statement 120 字給大眾、Abstract 給同行、全文）。**分層還是拆文件**：資訊本質相同只是深淺不同就分層；讀者要做的事本質不同（決策 vs 執行 vs 理解）就拆文件。Diátaxis 主張一份文件只服務一種需求，但它分的是認知模式（學習／動手／查找／理解），與這裡的角色深度是兩個維度，不互斥 |
 | 一段一概念、不設固定句數 | [Google: Paragraph structure](https://developers.google.com/style/paragraph-structure) | 現行立場是一句或超過六句都可能合理。正文據此改用「一段一個推論單位」的可觀測判準 |
 | 認知可及性 | [W3C COGA: Making Content Usable](https://www.w3.org/TR/coga-usable/design_guide.html) 4.4.1、4.4.3、4.4.5、4.4.8、4.4.9、4.4.12 | 屬補充指引，不是 WCAG 強制條款 |
 
@@ -155,11 +147,12 @@
 | 任何固定的段落句數上限 | 不採用 | 沒有可靠來源支持單一數字，且會製造「為了符合形式而過度壓縮」的問題。改用「一段一個推論單位」的可觀測判準 |
 | 「中文一句 20 字內最佳、40 字是上限」 | 查無來源 | 只找得到零星部落格的「15-25 字」建議，無學術或官方來源。改用可觀測的重讀觸發器取代字數門檻 |
 | 「破折號堆疊是 AI 生成特徵」 | 降級為弱訊號 | 屬流行認知，會誤傷本來就慣用破折號的作者。破折號限量的理由改用可讀性（過量或關係不明會妨礙理解） |
-| 「BLUF、inverted pyramid、Minto、GOV.UK 四個體系同向」 | 引用有誤 | HBR 2016 原文只提 BLUF 與 inverted pyramid 相似，沒提 Minto。Minto 的核心是歸納／演繹論證階層，跟純重要性排序不同 |
+| 「BLUF、inverted pyramid、Minto、GOV.UK 四個體系同向」 | 引用有誤 | HBR 2016 原文只提 BLUF 與 inverted pyramid 相似，沒提 Minto。Minto 的核心是歸納／演繹論證階層，跟純重要性排序不同。**否決的是「四體系同向」這個宣稱，不是 Minto 本身**——Minto 在「同一份文件分層服務不同角色」這個用途上是有效來源，見 WS-D07 |
 | 用 Diátaxis 當「讀者範圍」的分層依據 | 接錯軸 | Diátaxis 分的是讀者當下的需求情境（學習／解決問題／查閱／理解），不是讀者身份或知識程度 |
 | Jansen (2014) 的 bullet 研究可當無條件通則 | 過度簡化 | 原文是五個分研究的有條件結果：三個發現 bullet 有助清單記憶（項目異質時效果減弱）、兩個發現傷及周邊段落記憶，但讀者對文章整體評價反而更好 |
 | Bionic Reading 式加粗（每個字前半段加粗） | 不採用 | 2024-2025 多篇對照研究（含眼動追蹤）未發現速度或理解上的效益，例如 [Acta Psychologica 2024](https://www.sciencedirect.com/science/article/pii/S0001691824001811)，部分研究另觀察到負面效果。泛稱「標記關鍵字有助聚焦」則屬社群主流、無直接對照實驗 |
 | 用 WCAG 2.2 SC 3.1.5 Reading Level 當硬門檻 | 不採用 | 它是 web 的 AAA 條款，對一般文件過嚴；COGA 的條目對本 skill 更直接 |
+| 用「3-30-300」當分層結構的名稱 | 不採用 | 這個名稱出自 [Kurt Buhler, SQLBI, 2024-06-03](https://www.sqlbi.com/articles/introducing-the-3-30-300-rule-for-better-reports/)，用於 Power BI 儀表板，概念源頭是 Shneiderman 1996 的 visual information-seeking mantra。原文的「30 秒」是 filter 與 zoom 這類互動操作，靜態文件沒有這個動作。本 skill 曾誤把它當成通用的文件寫作慣例，改用 Executive Summary → Body → Appendix（見外部依據表）。同名不同義的還有行銷的「3-30-3 rule」（末段是 3 分鐘）與都市林業的「3-30-300 rule」（3 棵樹、30% 樹冠、300 公尺綠地） |
 | 讀者可讀性分數（Flesch-Kincaid 之類）當通過標準 | 不採用 | 屬工具與顧問慣例，非 plainlanguage.gov／GOV.UK 的規定；量化門檻容易變成新的形式主義 |
 
 ## 平台與渲染細節
