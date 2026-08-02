@@ -116,7 +116,7 @@
 
 ## 外部依據（可依新證據修改）
 
-以下規則的正當性來自外部規範，證據變動就跟著調整：
+以下規則的正當性來自外部規範，證據變動就跟著調整；表內標注「本地加註」「本地推導」「本地補充」的部分是本地決策，不隨外部證據變動：
 
 | 規則 | 來源 | 適用範圍與注意事項 |
 | --- | --- | --- |
@@ -159,9 +159,9 @@
 
 `<details>/<summary>` 摺疊的相容性（會變動的支援資料指向來源，本檔不寫死版本號）：
 
-- **元素本身的支援不是問題**：[caniuse](https://caniuse.com/details) 全球約 97%，主流瀏覽器十多年前就支援。CodiMD／HackMD、GitHub 與多數 IDE 預覽也都支援（HackMD／CodiMD × Chrome／Firefox 有使用者 2026-08-02 實測確認）。
+- **元素本身的支援不是問題**：支援率與版本現況見 [caniuse](https://caniuse.com/details)（比例會變動，本檔不寫死）。CodiMD／HackMD、GitHub 與多數 IDE 預覽也都支援（HackMD／CodiMD × Chrome／Firefox 有使用者 2026-08-02 實測確認）。
 - **Notion**：貼上或匯入 Markdown 時會移除標籤，內容可能整段消失，不會變成 toggle。其 API 另有支援 details/summary，但貼上、匯入、API 是三條不同通路，不能互相外推。確定要貼到 Notion 的文件先展開，改用「存查材料後置＋文末附錄」。
-- **頁內搜尋找得到（這是修正過的認知）**：[HTML Standard](https://html.spec.whatwg.org/multipage/interaction.html#interaction-with-details-and-hidden=until-found) 把「頁內搜尋能找到關閉的 `<details>` 並自動展開」列為規範行為，主流瀏覽器實作多年（caniuse 的 details 條目未涵蓋此行為，具體起始版本屬考古、對規則效力無影響）。**「摺疊內容搜不到」對現代瀏覽器的原生 details 已不成立，不能再拿來當摺疊的否決條件。** Safari 曾有「展開但沒捲到結果」的問題，體驗仍可能不完整。
+- **頁內搜尋找得到（這是修正過的認知）**：[HTML Standard](https://html.spec.whatwg.org/multipage/interaction.html#interaction-with-details-and-hidden=until-found) 把「頁內搜尋能找到關閉的 `<details>` 並自動展開」列為規範行為；各瀏覽器完成實作的時間不一（caniuse 的 details 條目未涵蓋此行為），目標環境有疑慮就實測。**「摺疊內容搜不到」對現代瀏覽器的原生 details 已不成立，不能再拿來當摺疊的否決條件。** Safari 曾有「展開但沒捲到結果」的問題，體驗仍可能不完整。
 - **`hidden="until-found"` 是另一套機制**，各家支援狀態的公開資料曾互相矛盾；現況查 [caniuse](https://caniuse.com/mdn-html_global_attributes_hidden_until-found) 或 MDN，目標環境有疑慮就實測。
 - **列印**：展開與否沒有一致保證。
 
