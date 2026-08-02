@@ -12,7 +12,7 @@
 4. **外部依據**——可依新證據修改。
 5. **已否決的主張**——不得因為在寫作圈流行就加回。
 6. **平台與渲染細節**。
-7. **句子層細則的證據身分**——`SKILL.md` 與 `examples.md` 那六條的查證結果。
+7. **句子層細則的證據身分**——`examples.md`「句子與條列的寫法」那六條的查證結果。
 
 同目錄另有 `examples.md`（語氣變體、正反例全集、AI 常犯問題的判斷細節）與 `taiwan-terms.md`（中國用語對照表）。
 
@@ -104,15 +104,20 @@
 
 | 編號 | 行為目標（不可動） | 可調部分 | 佐證 |
 | --- | --- | --- | --- |
-| WS-M01 | 不可為了短而刪掉理解所需的內容 | 具體的重讀觸發器怎麼寫 | plain language 系原則；W3C COGA 4.4.9、4.4.12；LLM 摘要出現廣泛概化的比率高於人類科學摘要（[Peters & Chin-Yee, 2025](https://doi.org/10.1098/rsos.241776)，4,900 份摘要、10 個模型，odds ratio 4.85；限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（[arXiv 2312.02065](https://arxiv.org/abs/2312.02065)） |
+| WS-M01 | 不可為了短而刪掉理解所需的內容 | 具體的重讀觸發器怎麼寫 | plain language 系原則；W3C COGA 4.4.9、4.4.12；兩篇 LLM 研究（細節見表後） |
 | WS-M02 | 「一句一事」限制的是主張數量，不是字數 | 判斷主張數量的提示 | 同上 |
 | WS-M03 | 說明型條列每項自我完整，不逼讀者回查前文 | 例外情境 | COGA「不依賴記憶」目標 |
 | WS-M04 | 先認定讀者，再決定機制要解釋到多深 | 讀者分類方式 | plain language「write for your audience」 |
 | WS-M05 | 縮寫與代號首次出現附意義 | 豁免清單 | Google／Microsoft 縮寫規範 |
 | WS-M06 | 跨文件引用要說明目前狀態，不只丟連結 | 狀態聲明的格式 | W3C「Status of This Document」慣例（**類比**，不是直接證據——該慣例規範的是 W3C 規格文件，不是一般跨文件引用） |
-| WS-M07 | 長篇報告要讓不同閱讀深度的人都拿到核心資訊：執行摘要能脫離全文獨立閱讀，非必要的查證材料不擋在正文 | 是否設附錄、各層名稱、摘要長度 | 現行工程報告慣例（[IEEE: Write Effective Reports](https://procomm.ieee.org/communication-resources-for-engineers/written-reports/write-effective-reports/)）區分 executive summary、body、appendices，是最直接的支持。**ISO 5966 已於 2000 年撤銷**，只能當歷史來源，不可當現行標準引用。IEEE 只說執行摘要最長約可到全文 10%，「5–10%」是誤植，本 skill 不寫死比例。[Minto](https://www.barbaraminto.com/) 支持的是「主要結論在上、支持論點在下，上層概括其下層論點」的**論點階層**，不直接主張「同一份文件分層服務不同角色」，兩者不要混為一談。PNAS 的三層規範（Significance Statement 120 字給大眾、Abstract 給同行、全文）是少數有明文字數的案例，可參考不可外推 |
+| WS-M07 | 長篇報告要讓不同閱讀深度的人都拿到核心資訊：執行摘要能脫離全文獨立閱讀，非必要的查證材料不擋在正文 | 是否設附錄、各層名稱、摘要長度 | 現行工程報告慣例（[IEEE: Write Effective Reports](https://procomm.ieee.org/communication-resources-for-engineers/written-reports/write-effective-reports/)）區分 executive summary、body、appendices，是最直接的支持；適用邊界見表後 |
 
 這批來自實際文件的讀者回饋，使用者已採納修正。**注意**：採納「不可為了短而刪內容」不等於凍結所有相關數字——20 字、40 字這類實作數字不在保護範圍。
+
+佐證欄的查證細節（儲存格只留摘要，細節放這裡）：
+
+- **WS-M01 的兩篇 LLM 研究**：LLM 摘要出現廣泛概化的比率高於人類科學摘要（[Peters & Chin-Yee, 2025](https://doi.org/10.1098/rsos.241776)，4,900 份摘要、10 個模型，odds ratio 4.85；限科學與醫學摘要，不外推為所有文件的固定風險率）；即使 prompt 指定目標讀者，模型輸出的可讀性範圍仍難調動（[arXiv 2312.02065](https://arxiv.org/abs/2312.02065)）。
+- **WS-M07 的適用邊界**：**ISO 5966 已於 2000 年撤銷**，只能當歷史來源，不可當現行標準引用。IEEE 只說執行摘要最長約可到全文 10%，「5–10%」是誤植，本 skill 不寫死比例。[Minto](https://www.barbaraminto.com/) 支持的是「主要結論在上、支持論點在下，上層概括其下層論點」的**論點階層**，不直接主張「同一份文件分層服務不同角色」，兩者不要混為一談。PNAS 的三層規範（Significance Statement 120 字給大眾、Abstract 給同行、全文）是少數有明文字數的案例，可參考不可外推。
 
 ## 外部依據（可依新證據修改）
 
@@ -167,7 +172,7 @@
 
 ## 句子層細則的證據身分
 
-`SKILL.md` 的「句子層細則」六條，證據強度不一，重寫時已依查證結果條件化：
+`examples.md`「句子與條列的寫法」的六條，證據強度不一，重寫時已依查證結果條件化（這六條原在 `SKILL.md`，重構時移入 `examples.md`）：
 
 | 規則 | 證據身分 | 條件化的內容 |
 | --- | --- | --- |
