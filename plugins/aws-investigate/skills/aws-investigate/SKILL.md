@@ -109,6 +109,15 @@ fields @timestamp, @message
 
 ### Phase 0：載入 Config + 專案知識
 
+> **本機檔案的存放位置**：`config.local.yaml` 與 `context.local.md` 是使用者的本機資產，不進版控。plugin 安裝路徑是**按版號分目錄**的（`.../aws-investigate/<version>/skills/aws-investigate/`），只寫在那裡的話，plugin 一升版就會拿到全新空目錄、本機設定與累積的專案知識全部消失。
+>
+> 因此讀寫一律照這個順序：
+> 1. 先讀 `${CLAUDE_SKILL_DIR}/config.local.yaml`（通常是指向穩定路徑的 symlink）。
+> 2. 讀不到就讀穩定路徑 `~/.claude/aws-investigate/config.local.yaml`；讀得到就直接用，並在 `${CLAUDE_SKILL_DIR}` 補建 symlink 指過去。
+> 3. **首次設定或更新時一律寫進穩定路徑**，再於 `${CLAUDE_SKILL_DIR}` 建 symlink——不要把真檔寫進版號目錄。
+>
+> `context.local.md` 同此規則。
+
 **Step 1：Config**
 
 檢查 `${CLAUDE_SKILL_DIR}/config.local.yaml` 是否存在：
@@ -187,9 +196,9 @@ fields @timestamp, @message
    - Error type 欄位：若偵測到則預填（如 `python_structlog: exc_info.0`），否則留空（掃描時動態探索）。
    - Trace ID 設定：若偵測到則顯示建議值（如 `backend_field: amz_trace_id`），否則提供「未使用 trace ID」選項。
 
-8. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
+8. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入穩定路徑 `~/.claude/aws-investigate/config.local.yaml`（目錄不存在就建），再於 `${CLAUDE_SKILL_DIR}/config.local.yaml` 建 symlink 指過去。理由見 Phase 0 開頭的存放位置說明——寫進版號目錄會在 plugin 升版時消失。
 9. **確保報告產出被 gitignore**：檢查 `{config.report_dir}/.gitignore` 是否存在。若不存在，建立內容為 `*` 和 `!.gitignore` 兩行，整個子目錄的產出都不進 git。
-10. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
+10. 告知使用者：「設定已儲存在 `~/.claude/aws-investigate/`（不受 plugin 升版影響），未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
@@ -362,7 +371,7 @@ aws logs describe-log-groups \
 
 ## 報告補完互動（技術調查完成後、產出最終報告前）
 
-AI agent 能查到技術根因和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 向使用者收集以下資訊。所有收集到的資訊直接寫入最終報告，報告產出後不預期有人回來更新。
+AI agent 能查到技術 root cause 和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 向使用者收集以下資訊。所有收集到的資訊直接寫入最終報告，報告產出後不預期有人回來更新。
 
 ### 1. 使用者影響（AI 查不到）
 
@@ -373,13 +382,13 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 
 使用者回答「不確定」或「沒有」的項目不放進報告。
 
-### 2. 系統性根因（AI 查不到）
+### 2. 系統性根本原因（AI 查不到）
 
 - 這個問題有沒有可能在更早的階段被發現？（code review / 測試 / 監控）
 - 是什麼流程缺口讓它到了線上才爆發？
 - 有沒有類似的風險可能存在於其他地方？
 
-使用者若說「目前沒想到」，報告就只保留技術根因，不硬塞。
+使用者若說「目前沒想到」，報告就只保留技術 root cause，不硬塞。
 
 ### 3. Action Items 審核
 
@@ -396,6 +405,7 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 
 ### Pass 1：完整性
 - [ ] 每個 🔴 高/🟡 中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
+- [ ] 定期掃描報告含「會議分流建議」段：每個建議上會議項目附分流理由，無上會議項目時明寫「本週無需上報事項」（準則見 `report-guidelines.md`「會議分流建議」）
 - [ ] 每個數據聲明可追溯到查詢來源（`[Qn]` 標記位置規則見 `report-guidelines.md`「數據與來源」）
 - [ ] 行動清單每行 6 欄位齊全（欄位定義見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
 - [ ] 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現

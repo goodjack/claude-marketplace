@@ -19,6 +19,7 @@
 | Redis        | `AWS/ElastiCache`    | `EngineCPUUtilization`, `NetworkBytesIn/Out`, `CurrConnections`        | 部署前後突然衝高             |
 | Redis memory | `AWS/ElastiCache`    | `CurrItems`, `DatabaseMemoryUsagePercentage`, `BytesUsedForCache`      | key 數線性成長 = session/cache 汙染 |
 | Redis 命令級 | `AWS/ElastiCache`    | `SetTypeCmds`, `GetTypeCmds`, `CacheHitRate`, `Evictions`              | SET 暴增或 key 累積導致 memory 滿 |
+| Redis 命令延遲 | `AWS/ElastiCache`  | `*CmdsLatency`（`SetTypeCmdsLatency`、`GetTypeCmdsLatency` 等）        | 命令次數沒變但延遲衝高＝單一命令變慢，與上一列的次數指標對照看 |
 | ECS          | `AWS/ECS`            | `CPUUtilization`, `MemoryUtilization`                                  | OOM 或 CPU throttle          |
 | ALB          | `AWS/ApplicationELB` | `TargetResponseTime`, `HTTPCode_Target_5XX_Count`                      | 延遲突升、5xx 突增           |
 | RDS          | `AWS/RDS`            | `CPUUtilization`, `DatabaseConnections`, `ReadLatency`, `WriteLatency` | 連線池耗盡、慢查詢           |
