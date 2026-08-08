@@ -20,4 +20,7 @@
   - 純文件更新（README、AGENTS.md）或內部維護 → 不升版，避免使用者白白更新。
 - 發版建 tag 一律走 `claude plugin tag` 流程，不要手動下 `git tag`：內建流程有驗證（working tree 乾淨、版號一致、tag 不重複），手動 tag 沒有這層保障。
 - `claude plugin tag` 不加 `--push` 時只會建立本地 tag。要推送 tag 到遠端，需明確加上 `--push`，或另外執行 `git push origin --tags`。
+- 執行前先確認站在 main 且與遠端同步，並用 `--dry-run` 核對 plugin 名與版號：tag 建在當前 HEAD，站錯 branch 會把未 merge 的版號標到錯的 commit。
+- 指令用 path 參數指定 plugin（形式見 README「版號管理」），不要寫成 `cd <plugin 目錄> && claude plugin tag`：複合指令裡的 `cd` 會觸發權限詢問而中斷。
+- 站在 main 且 `--dry-run` 核對無誤後，建立與推送 tag 由 AI 直接執行，不需逐次請示。
 - `marketplace.json` 的 plugin entry 不放 `version`：官方警告雙重宣告時 `plugin.json` 會無警告優先，另一邊必然過時（見 [Plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)）。plugin 的 description 在 `plugin.json` 與 `marketplace.json` 兩處隨功能增減同步更新。
