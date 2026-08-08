@@ -53,6 +53,6 @@ AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設�
 
 1. 更新該 plugin 的 `.claude-plugin/plugin.json` 的 `version`
 2. Commit & merge 到 main
-3. 在 plugin 目錄下執行 `claude plugin tag --push`
+3. 在 repo 根目錄執行 `claude plugin tag --push plugins/<plugin 名>`
 
 當 plugin 之間有相依關係時，可在 `dependencies` 中限制對方的版本範圍，避免上游破壞性更新影響下游。詳見 [Plugin Dependencies](https://docs.claude.com/zh-TW/docs/claude-code/plugin-dependencies)。
