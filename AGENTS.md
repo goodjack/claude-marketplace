@@ -5,7 +5,7 @@
 ## 修訂流程
 
 - 一律開 feature branch（`feat/<主題>`、`fix/<主題>`、`docs/<主題>`）走 PR，不直接 commit 到 main。
-- Merge 用 squash：PR 標題用 Conventional Commits（scope 用 plugin 名，例 `feat(writing-style): ...`），squash 後即 main 上的 commit 訊息。
+- Merge 用 merge commit；commit 訊息用 Conventional Commits（scope 用 plugin 名，例 `feat(writing-style): ...`）。
 - 修訂紀錄記在 commit message，plugin 內不放 changelog 檔。
 - SKILL.md 本文超過 500 行時拆到 references/。
 - 本 repo 公開：所有內容（commit、PR、檔案、註解）不得出現任何公司或組織的內部識別。
