@@ -79,7 +79,7 @@ sub mask_line {
   my ($line) = @_;
   $line =~ s/\Q$BT2\E.*?\Q$BT2\E//g;
   $line =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;
-  $line =~ s{https?://[^\s\p{Han}（）「」『』、，。；：！？]+}{}g;
+  $line =~ s{https?://[^\s\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}（）「」『』、，。；：！？]+}{}g;
   return $line;
 }
 
