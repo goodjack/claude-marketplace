@@ -73,13 +73,13 @@ my $BT = chr(96);
 my $BT2 = $BT x 2;
 
 # 檢查二、三共用的行文遮罩：先去雙反引號 code span（避免內部反引號被單反引號
-# 規則誤判），再去單反引號 code span，最後整段移除 URL（避免 URL 裡的
-# 分號、斜線被誤判為斷句符號或串接符號）。
+# 規則誤判），再去單反引號 code span，最後移除 URL——但 URL 只吃到中日韓字元
+# 或全形標點為止，避免 URL 後面直接接中文時把後面的中文（含觸發符號）也吃掉。
 sub mask_line {
   my ($line) = @_;
   $line =~ s/\Q$BT2\E.*?\Q$BT2\E//g;
   $line =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;
-  $line =~ s{https?://\S+}{}g;
+  $line =~ s{https?://[^\s\p{Han}（）「」『』、，。；：！？]+}{}g;
   return $line;
 }
 
@@ -133,17 +133,41 @@ if ($first_h2 == 0) {
 }
 
 # ---------- 正文行判定：排除 frontmatter／code fence／表格 ----------
+# fence 前置 0–3 個空白都算（CommonMark 慣例）；``` 只能被 ``` 關閉、
+# ~~~ 只能被 ~~~ 關閉，不同字元不互相配對、不會誤關。
 my @is_body = (0) x ($n + 1);
 my $in_fence = 0;
+my $fence_type = '';
 for (my $i = 1; $i <= $n; $i++) {
   if ($fm_end && $i <= $fm_end) { $is_body[$i] = 0; next; }
-  if ($L[$i] =~ /^(?:\Q$BT$BT$BT\E|~~~)/) {
-    $in_fence = !$in_fence;
+  if (!$in_fence) {
+    if ($L[$i] =~ /^[ ]{0,3}${BT}{3,}/) {
+      $in_fence = 1; $fence_type = 'bt';
+      $is_body[$i] = 0;
+      next;
+    }
+    if ($L[$i] =~ /^[ ]{0,3}~{3,}/) {
+      $in_fence = 1; $fence_type = 'tilde';
+      $is_body[$i] = 0;
+      next;
+    }
+  } else {
+    if ($fence_type eq 'bt' && $L[$i] =~ /^[ ]{0,3}${BT}{3,}/) {
+      $in_fence = 0; $fence_type = '';
+      $is_body[$i] = 0;
+      next;
+    }
+    if ($fence_type eq 'tilde' && $L[$i] =~ /^[ ]{0,3}~{3,}/) {
+      $in_fence = 0; $fence_type = '';
+      $is_body[$i] = 0;
+      next;
+    }
     $is_body[$i] = 0;
     next;
   }
-  if ($in_fence) { $is_body[$i] = 0; next; }
-  if ($L[$i] =~ /^\s*\|/) { $is_body[$i] = 0; next; }
+  # 表格行：行首（含前置空白）是 |，或整行含 2 個以上 |（無前導豎線的表格列）
+  my $pipe_count = () = $L[$i] =~ /\|/g;
+  if ($L[$i] =~ /^\s*\|/ || $pipe_count >= 2) { $is_body[$i] = 0; next; }
   $is_body[$i] = 1;
 }
 
