@@ -1,5 +1,5 @@
 {
-  "description": "台灣用語檢查：Edit/Write 後掃描目標檔案中的中國用語，以 additionalContext 提醒模型修正（advisory 不阻擋，刻意引用情境由模型判斷）",
+  "description": "文件品質檢查：Edit/Write 後掃描目標檔案，一是中國用語，二是文件形狀（同步層長度、符號串接、破折號與分號），以 additionalContext 提醒模型修正（advisory 不阻擋，刻意引用情境由模型判斷）",
   "hooks": {
     "PostToolUse": [
       {
@@ -10,6 +10,12 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-tw-terms-hook.sh",
             "timeout": 15,
             "statusMessage": "台灣用語檢查中"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-doc-shape-hook.sh",
+            "timeout": 15,
+            "statusMessage": "文件形狀檢查中"
           }
         ]
       }
