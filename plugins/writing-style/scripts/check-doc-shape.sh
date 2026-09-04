@@ -7,13 +7,19 @@
 # 三項檢查：
 #   1. 同步層長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
 #      第一個 "## " 之前的文字，超過門檻就提醒搬去小節。
-#   2. 符號串接——正文（排除 code fence／表格／frontmatter／inline code）用
-#      → ＋ ＝ ／ & 串接語意關係，而非寫成完整句子。命中摘錄取觸發符號前後
-#      各 15 字，不是行首 40 字，確保摘錄看得到觸發符號本身。
-#   3. 破折號與分號——正文（同上，另排除 inline code）用 —— ── — ； ; 斷句過量。
+#   2. 符號串接——正文（排除 code fence ``` 與 ~~~／表格／frontmatter／單雙
+#      反引號 inline code／URL）用 → ＋ ＝ ／ & 串接語意關係，而非寫成完整
+#      句子；「A → B → C」流程序列與數學式 notation 不算，訊息末尾會註明。
+#      命中摘錄取觸發符號前後各 15 字，不是行首 40 字，確保看得到觸發符號。
+#   3. 破折號與分號——正文（同上遮罩規則）用 —— ── — ； ; 斷句過量，訊息
+#      是軟性提醒（確認是否過量／可能是合理的平列分句），不是強制改句號。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
+#
+# 找不到 perl，或 perl 執行本身失敗（非語法內的「無命中」），一律印
+# ⚠️ 訊息並讓 CLI 版 exit 2（不能悄悄回報成通過）；hook 版仍固定 exit 0
+# 維持 advisory 不阻擋，失敗訊息照樣透過 additionalContext 讓模型看到。
 #
 # 字元計數採「用 wc -m 的算法」（多位元組字元算一個），但改在 perl 內用
 # UTF-8 decode 後的 length() 實作，不直接 shell 出去跑 wc -m：實測 wc -m
@@ -23,8 +29,16 @@ set -uo pipefail
 
 SYNC_LAYER_LIMIT="${WRITING_STYLE_SYNC_LAYER_LIMIT:-400}"
 
+# 沒有 perl 就什麼都查不了：立刻回報失敗，不要讓後面的邏輯悄悄跑出「無命中」
+# 的假結果（那會被讀成「通過」）。
+if ! command -v perl >/dev/null 2>&1; then
+  echo "⚠️ 無法完成文件形狀檢查：找不到 perl"
+  exit 2
+fi
+
 found=0
 checked_any=0
+runtime_error=0
 
 for f in "$@"; do
   [[ "$f" == *.md ]] || continue
@@ -56,6 +70,18 @@ $LIMIT = 400 unless defined $LIMIT && $LIMIT =~ /^\d+$/;
 # 反引號改用 chr(96) 組字串：字面反引號放進這支 bash heredoc 裡，
 # 奇數個會讓外層 bash 的引號配對解析失敗（實測重現，不是理論疑慮）。
 my $BT = chr(96);
+my $BT2 = $BT x 2;
+
+# 檢查二、三共用的行文遮罩：先去雙反引號 code span（避免內部反引號被單反引號
+# 規則誤判），再去單反引號 code span，最後整段移除 URL（避免 URL 裡的
+# 分號、斜線被誤判為斷句符號或串接符號）。
+sub mask_line {
+  my ($line) = @_;
+  $line =~ s/\Q$BT2\E.*?\Q$BT2\E//g;
+  $line =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;
+  $line =~ s{https?://\S+}{}g;
+  return $line;
+}
 
 # ---------- 找 frontmatter／H1／第一個 "## " ----------
 my $fm_end = 0;
@@ -111,7 +137,7 @@ my @is_body = (0) x ($n + 1);
 my $in_fence = 0;
 for (my $i = 1; $i <= $n; $i++) {
   if ($fm_end && $i <= $fm_end) { $is_body[$i] = 0; next; }
-  if ($L[$i] =~ /^\Q$BT$BT$BT\E/) {
+  if ($L[$i] =~ /^(?:\Q$BT$BT$BT\E|~~~)/) {
     $in_fence = !$in_fence;
     $is_body[$i] = 0;
     next;
@@ -128,8 +154,7 @@ my $sym_re = qr/→|＋|＝|[\p{Han}A-Za-z0-9]／[\p{Han}A-Za-z0-9]|\p{Han}&\p{H
 my @sym_hits;
 for (my $i = 1; $i <= $n; $i++) {
   next unless $is_body[$i];
-  my $line = $L[$i];
-  $line =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;  # 去除 inline code
+  my $line = mask_line($L[$i]);
   if ($line =~ /$sym_re/) {
     my $start = $-[0];
     my $end = $+[0];
@@ -153,6 +178,7 @@ if (@sym_hits) {
   }
   my $msg = "正文用符號串接語意關係（→ ＋ ＝ ／ &），改寫成完整句子或條列。\n" . join("\n", @shown);
   $msg .= "\n  …另 ${extra} 處" if $extra > 0;
+  $msg .= "\n  （表達步驟或流程順序的「A → B → C」序列、數學式與 notation 可忽略）";
   push @issues, $msg;
 }
 
@@ -162,8 +188,7 @@ my $semi_count = 0;
 my @hit_lines;
 for (my $i = 1; $i <= $n; $i++) {
   next unless $is_body[$i];
-  my $line = $L[$i];
-  $line =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;  # 去除 inline code
+  my $line = mask_line($L[$i]);
   my $hit_here = 0;
   while ($line =~ /[—─]+/g) { $dash_count++; $hit_here = 1; }
   while ($line =~ /[;；]/g) { $semi_count++; $hit_here = 1; }
@@ -179,7 +204,7 @@ if ($dash_count > 0 || $semi_count > 0) {
   }
   my $lines_str = join('、', map { "第${_}行" } @shown);
   $lines_str .= "、…另 ${extra} 處" if $extra > 0;
-  push @issues, "破折號 ${dash_count} 處、分號 ${semi_count} 處：一句一事，改用句號斷開或改條列。\n  出現於：${lines_str}";
+  push @issues, "破折號 ${dash_count} 處、分號 ${semi_count} 處：確認是否過量或用來串接獨立主張；平列分句可用分號。\n  出現於：${lines_str}";
 }
 
 if (@issues) {
@@ -187,6 +212,14 @@ if (@issues) {
 }
 PERL_SCRIPT
 )"
+  rc=$?
+
+  if [[ $rc -ne 0 ]]; then
+    runtime_error=1
+    found=1
+    echo "⚠️ 無法完成文件形狀檢查（perl 執行失敗）：$f"
+    continue
+  fi
 
   if [[ -n "$result" ]]; then
     found=1
@@ -195,6 +228,10 @@ PERL_SCRIPT
     echo
   fi
 done
+
+if [[ "$runtime_error" -eq 1 ]]; then
+  exit 2
+fi
 
 if [[ "$checked_any" -eq 1 && "$found" -eq 0 ]]; then
   echo "✅ 未發現文件形狀問題"

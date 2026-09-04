@@ -11,9 +11,10 @@ f="$(jq -r '.tool_input.file_path // .tool_response.filePath // empty' <<<"$payl
 [[ "$f" == *.md ]] || exit 0
 
 # 規則檔與範例／詞表類檔案本身就常見長段落、破折號、對照符號——跳過避免必然誤報
-# （CLI 版不排除，手動跑要能檢查任何檔）
+# （CLI 版不排除，手動跑要能檢查任何檔）。references 只排除 skill 自己的參考檔
+#（*/skills/*/references/*），一般專案的 references 目錄要照掃。
 case "$f" in
-  */CLAUDE.md|*/AGENTS.md|*/backlog.md|*/references/*) exit 0 ;;
+  */CLAUDE.md|*/AGENTS.md|*/backlog.md|*/skills/*/references/*) exit 0 ;;
 esac
 
 result="$("$(dirname "$0")/check-doc-shape.sh" "$f" 2>/dev/null)" || true
