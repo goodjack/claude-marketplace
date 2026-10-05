@@ -117,13 +117,13 @@ fields @timestamp, @message
 
 **找到** → 讀取為 `{config}` 變數，用於後續所有預設值。結構定義見 `${CLAUDE_SKILL_DIR}/config.example.yaml`（含每個欄位的用途註解）。若是在第 2 處找到，提議使用者搬到第 1 處，避免下次升版後找不到。
 
-**兩處都沒有** → 讀 `references/setup.md` 跑首次設定流程，設定檔寫到 `~/.claude/aws-investigate/config.local.yaml`，完成後繼續 Step 2。
+**兩處都沒有** → 讀 `references/setup.md`：先照「從舊版本搬移」找舊版本留下的設定檔與專案知識並複製到新位置，找不到才跑「首次設定流程」，完成後繼續 Step 2。
 
 **模式偵測**：檢查 `config.trace_id.backend_field` 是否存在且非空——存在則啟用 **trace-enhanced** 模式（調查工具箱 T2-B、Scan 1 第三·五層 trace 去重可用），不存在則使用 **log-only** 模式（所有 trace 步驟跳過，行為同修改前）。
 
 **Step 2：專案特定知識**
 
-依序找 `~/.claude/aws-investigate/context.local.md`、`${CLAUDE_SKILL_DIR}/context.local.md`，先找到的為準，記為 `{context_path}`。兩處都沒有時，`{context_path}` 設為 `~/.claude/aws-investigate/context.local.md`，之後新建一律寫這裡。
+依序找 `~/.claude/aws-investigate/context.local.md`、`${CLAUDE_SKILL_DIR}/context.local.md`，先找到的為準，記為 `{context_path}`。兩處都沒有、且 Step 1 沒有跑過舊版本搬移時（設定檔已在新位置），照 `references/setup.md` 的「從舊版本搬移」只找 `context.local.md`。仍然沒有時，`{context_path}` 設為 `~/.claude/aws-investigate/context.local.md`，之後新建一律寫這裡。
 
 **存在** → 讀取並記住內容。此檔案是 `config.local.yaml` 的補充——config 放結構化設定，這裡放 config 裝不下的自由格式知識：log schema、trace ID 格式、code path 注意事項、已知雜訊 pattern、歷史案例、report convention、issue tracker 慣例、已驗證陷阱等。在後續所有查詢和判讀中都需要參照。
 

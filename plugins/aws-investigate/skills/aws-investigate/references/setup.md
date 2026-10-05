@@ -1,6 +1,19 @@
-# 首次設定流程
+# 設定檔不存在時
 
-只有在 SKILL.md Phase 0 Step 1 兩個位置都找不到 `config.local.yaml` 時才用這份。設定檔一律寫到 `~/.claude/aws-investigate/config.local.yaml`：plugin 升版後安裝目錄會換，寫在 skill 目錄裡的設定會跟著失聯。
+SKILL.md Phase 0 在 `~/.claude/aws-investigate/` 與目前版本的 skill 目錄都找不到本機檔時才用這份：先從舊版本搬移，找不到才跑首次設定。新檔一律寫到 `~/.claude/aws-investigate/`：plugin 升版後安裝目錄會換，寫在 skill 目錄裡的檔案會跟著失聯。
+
+## 從舊版本搬移
+
+plugin 快取裡每個版本各有一份 skill 目錄，舊版本的 `config.local.yaml` 與 `context.local.md` 留在舊版本的資料夾裡。設定檔與專案知識一起處理；從 Step 2 進來時只處理 `context.local.md`。
+
+1. 列出候選。版本資料夾位在 `~/.claude/plugins/cache/<marketplace>/aws-investigate/<版本>/skills/aws-investigate/`，兩層都用萬用字元找；也用相對寫法 `${CLAUDE_SKILL_DIR}/../../../*/skills/aws-investigate/` 找一次，涵蓋設定目錄不在 `~/.claude` 的情況。排除目前版本自己的 `${CLAUDE_SKILL_DIR}`（Phase 0 已經查過）。
+2. 一份都沒有 → 跳到下方「首次設定流程」（從 Step 2 進來時回到 Step 2 的「不存在」）。
+3. 只有一份 → 告知來源版本與路徑，使用者同意後複製到 `~/.claude/aws-investigate/`（目錄不存在就先建立）。
+4. 有多份 → 列出每份的版本、路徑與修改時間，請使用者選。設定檔與 `context.local.md` 各選一份，預設選同一個版本資料夾。
+5. 新位置已經有同名檔時，不複製那一份、不覆寫，告知使用者保留的是新位置的版本。
+6. 用複製而不是移動：舊版本資料夾之後會被 plugin 清理一併移除，留著不影響。複製完回到 SKILL.md Phase 0，從新位置讀取。
+
+## 首次設定流程
 
 1. 說明：「這個 skill 需要一些 AWS 環境設定才能查詢。我會先偵測環境，再請你確認——答案會儲存在 `~/.claude/aws-investigate/config.local.yaml`，只需要做一次。」
 

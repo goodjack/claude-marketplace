@@ -86,7 +86,7 @@ cd claude-marketplace
 
 ## 設定檔
 
-兩個本機檔都放在 `~/.claude/aws-investigate/`。plugin 升版後安裝目錄會換，放在 skill 目錄外才不會在升版後失聯。skill 會先找 `~/.claude/aws-investigate/`，找不到再找 skill 目錄（舊版位置，仍會讀取，並提議搬到新位置）。
+兩個本機檔都放在 `~/.claude/aws-investigate/`。plugin 升版後安裝目錄會換，放在 skill 目錄外才不會在升版後失聯。skill 會先找 `~/.claude/aws-investigate/`，找不到再找目前版本的 skill 目錄；兩處都沒有時，會從 plugin 快取裡舊版本的 skill 目錄找既有的設定與專案知識，經你同意後複製到新位置（有多份就列出來讓你選，不覆寫新位置已有的檔），都找不到才跑首次設定。
 
 ### `config.local.yaml`
 
@@ -111,7 +111,7 @@ aws-investigate/
 ├── .gitignore                  # 忽略舊版放在這裡的本機檔
 ├── README.md
 └── references/
-    ├── setup.md                # 首次設定流程（沒有設定檔時才用）
+    ├── setup.md                # 從舊版本搬移與首次設定（沒有設定檔時才用）
     ├── query-basics.md         # CloudWatch 查詢基礎
     ├── periodic-scan.md        # Scan 1-5 完整流程
     ├── investigation-toolkit.md # T1-T5 深入調查工具
