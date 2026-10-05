@@ -136,7 +136,7 @@ gh pr view <number> --json baseRefName,headRefName,headRefOid,mergeable
    git worktree add --detach --no-checkout <review_dir> && git -C <review_dir> fetch origin pull/<number>/head && git -C <review_dir> checkout --detach FETCH_HEAD
    ```
 
-3. 確認 checkout 的是這個 PR 的最新 head：merge result 用 `git -C <review_dir> rev-parse HEAD^2`，PR branch 用 `git -C <review_dir> rev-parse HEAD`，結果要等於 `headRefOid`。不相符代表 PR 在查詢後又被推了新 commit，清理本場目錄後從 `gh pr view` 重來。
+3. 確認 checkout 的是這個 PR 的最新 head：merge result 用 `git -C <review_dir> rev-parse HEAD^2`，PR branch 用 `git -C <review_dir> rev-parse HEAD`，結果要等於 `headRefOid`。不相符代表 PR 在查詢後又被推了新 commit，清理本場目錄後從 `gh pr view` 重來一次；重來仍不相符（GitHub 的 merge result 可能還沒重算），改走 PR branch 流程，並在 review body 寫「合併狀態尚未確定」。
 
 4. 查看變更差異：
 
@@ -350,16 +350,16 @@ EOF
 
 只處理本場 `mktemp` 印出的那一個路徑；其他 `review-pr-*` 目錄與其他 worktree 可能屬於另一場進行中的審查，看起來像殘留也不碰。
 
-- **worktree 已註冊**（`git worktree list` 裡有 `<review_dir>`，包含 `worktree add` 成功但之後 fetch 或 checkout 失敗）：
+1. 先移除 worktree。`worktree add` 成功過（包含之後 fetch 或 checkout 失敗）就會在這步清掉；不必先用 `git worktree list` 比對路徑，macOS 上 `mktemp` 印出的 `/var/...` 與 list 顯示的 `/private/var/...` 字串不同，比對會誤判。
 
-  ```bash
-  git worktree remove --force <review_dir>
-  ```
+   ```bash
+   git worktree remove --force <review_dir>
+   ```
 
-- **目錄已建立但 worktree 沒有註冊**（`worktree add` 失敗或還沒執行到）：
+2. 上一步回報 `<review_dir>` 不是 worktree（`worktree add` 失敗或還沒執行到），目錄是本場建立的空目錄，改用：
 
-  ```bash
-  rmdir <review_dir>
-  ```
+   ```bash
+   rmdir <review_dir>
+   ```
 
-  `rmdir` 只刪空目錄；目錄不是空的就停下來回報路徑，不改用 `rm -rf`。
+   `rmdir` 只刪空目錄；目錄不是空的就停下來回報路徑，不改用 `rm -rf`。
