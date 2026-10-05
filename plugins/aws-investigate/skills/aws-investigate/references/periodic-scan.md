@@ -8,6 +8,15 @@
 
 ---
 
+## 目錄
+
+- Scan 1: 後端 error 分層彙總
+- Scan 1.5: Tasks 獨立分析
+- Scan 2: 前端 error 彙總
+- Scan 3: 雜訊過濾 — 爬蟲 / 安全掃描 / 攻擊流量識別
+- Scan 4: ALB 查詢（Athena）
+- Scan 5: 分級篩選 → 深入分析
+
 ## Scan 1: 後端 error 分層彙總
 
 **掃描範圍**：對 `config.log_formats` 中所有同格式的 log group 合併查詢（CloudWatch Insights 支援 `--log-group-names` 多 group）。例如 `python_structlog` 下所有 log group（API server、背景任務等）共用同一組查詢，避免遺漏非 API 來源的 error。
@@ -391,13 +400,13 @@ aws athena get-query-results \
 
 **此步驟是掃描與深入分析的橋樑。不要跳過直接寫報告。**
 
-綜合 Scan 1-4 的彙總結果，依 **business impact**（不是 raw count）篩選需要深入分析的問題。Count 高不等於嚴重，count 低不等於安全——3,564 筆 DataError 使用者完全無感（cache miss 靜默降級），170 筆 504 卻讓使用者看到白屏。
+綜合 Scan 1-4 的彙總結果，依 **business impact**（不是 raw count）篩選需要深入分析的問題。Count 高不等於嚴重，count 低不等於安全——3,564 筆 DataError 使用者完全無感（cache miss 時不報錯、直接降級），170 筆 504 卻讓使用者看到白屏。
 
 **🔴 高（必須深入）：**
 - 使用者可見影響：前端 5xx、頁面空白、功能失效（full-stack error）
 - 5xx 連鎖反應（一個服務 503 導致下游多個 endpoint 500）
 - `target_status_code = '-'`（container crash）
-- 資料完整性受損：寫入失敗、cache 靜默失效、資料不一致
+- 資料完整性受損：寫入失敗、cache 失效但不報錯、資料不一致
 - 新出現的 error pattern（過去報告中未見過）且趨勢上升
 
 **🟡 中（應該深入）：**

@@ -1,7 +1,7 @@
 # 已知系統行為模式
 
 > 此檔案包含**跨組織通用、廣泛適用的行為模式**，來自 AWS 託管 Web 應用的調查經驗。
-> 專案特定的知識由 AI 維護在 skill 根目錄的 `context.local.md`（Phase 0 載入）。
+> 專案特定的知識由 AI 維護在 `context.local.md`（位置見 SKILL.md Phase 0，預設 `~/.claude/aws-investigate/`）。
 >
 > 遇到 log / ALB 紀錄符合以下模式時，先比對此表和 `context.local.md` 決定是雜訊、正常行為還是值得追蹤的問題，避免每次重複調查。
 >

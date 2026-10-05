@@ -2,6 +2,15 @@
 
 > 報告涉及基礎設施指標時，附上 CloudWatch 圖表讓讀者一眼看出異常趨勢。使用 AWS `get-metric-widget-image` API 產生 PNG，不需要額外工具。
 
+## 目錄
+
+- 產圖指令
+- 檔案慣例
+- 何時產圖
+- 圖表模板
+- 部署標註（Annotations）
+- Dimension 探索
+
 ## 產圖指令
 
 ```bash

@@ -1,5 +1,15 @@
 # 分析判讀原則
 
+## 目錄
+
+- 查詢陷阱：Log 欄位易誤判情境
+- ALB 作為執行完整性的直接證據
+- 流量 Spike 分析方法
+- 效能問題判讀
+- 數據點附查詢來源
+- 驗證守則
+- 間接確認成功：查失敗路徑是否存在
+
 ## 查詢陷阱：Log 欄位易誤判情境
 
 遇到以下情境時，不要直接用欄位值下結論，需要繞道過濾：
@@ -32,7 +42,7 @@ Nuxt 3 的 H3 框架中，`addServerHandler({ middleware: true })` 掛載的 mid
 
 **陷阱 3：ALB 在 CloudFront 後面時，client_ip 和 WAF country 都不是真實用戶資訊**
 
-常見誤判場景：
+常見誤判情境：
 - ALB access log 的 `client_ip` → 看到的是 CloudFront edge IP（如 3.172.x、15.158.x、64.252.x），不是用戶 IP
 - Regional WAF log 的 `httpRequest.country` → 反映 CloudFront edge 所在國家（TW/JP/US/SG），不是用戶國家
 - 只有 **CloudFront access log**（`c-ip` 欄位）或 **Global WAF log**（`httpRequest.clientIp`）才有真實用戶 IP
