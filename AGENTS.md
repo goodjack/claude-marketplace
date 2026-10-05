@@ -7,8 +7,17 @@
 - 一律開 feature branch（`feat/<主題>`、`fix/<主題>`、`docs/<主題>`）走 PR，不直接 commit 到 main。
 - Merge 用 merge commit；commit 訊息用 Conventional Commits（scope 用 plugin 名，例 `feat(writing-style): ...`）。
 - 修訂紀錄記在 commit message，plugin 內不放 changelog 檔。
-- SKILL.md 本文超過 500 行時拆到 references/。
 - 本 repo 公開：所有內容（commit、PR、檔案、註解）不得出現任何公司或組織的內部識別。
+
+## Skill 撰寫規範
+
+部分 skill 也會給 Claude Code 以外的 agent 讀，以下寫法以跨工具都成立為準。
+
+- **觸發資訊**：description 前 200 字元寫用途與觸發詞。`when_to_use` 是 Claude Code 專屬欄位，其他 agent 只讀 `name` 與 `description`，觸發資訊不能只放在 `when_to_use`。
+- **長度**：SKILL.md 本文以少於 500 行、5k token 為目標（Anthropic 的撰寫建議，不是硬上限），超過就把只在特定情況用得到的內容搬到 references/。Claude Code 壓縮對話後每個 skill 只重貼本文前段，核心流程與陷阱放前面。
+- **references**：超過 100 行的參考檔在檔頭加目錄；SKILL.md 直接指向每一份參考檔，不讓某份參考檔只能透過另一份參考檔找到。
+- **不寫死模型與時點**：不寫具體模型名與版本，用相對層級描述（主對話模型、最低階可用模型這類）；落款範例寫「行銷名稱而非 model id」。日期、量測數字與事件經過不放執行指引，放 references 的設計紀錄或 commit message。
+- **frontmatter**：以 Agent Skills 開放規格的六個欄位為主（`name`、`description`、`license`、`compatibility`、`metadata`、`allowed-tools`）；加 Claude Code 專屬欄位時，接受其他 agent 會忽略它。
 
 ## 版號管理
 
