@@ -1,7 +1,6 @@
 ---
 name: aws-investigate
-description: 調查 AWS 線上環境的 error、效能劣化、基礎設施異常。涵蓋 CloudWatch Logs（Insights + FilterLogEvents）、ALB Logs（Athena）、CloudWatch Metrics（Redis/ECS/ALB/RDS）、ECS 容器診斷、CodePipeline 部署比對。支援定期掃描（彙總+篩選+報告）與特定問題調查（trace 追蹤+root cause 分析）兩種入口。
-when_to_use: 當使用者提到「查 log」「看 error」「查線上問題」「每週 error 統整」「這個 trace 發生什麼事」「Redis 暴增」「container crash」「ALB 502」「效能變慢」「部署後異常」「寫事件報告」「incident report」時觸發。
+description: 調查 AWS 線上環境的 error、效能劣化與基礎設施異常；使用者說「查 log」「看 error」「查線上問題」「這個 trace 發生什麼事」「Redis 暴增」「container crash」「ALB 502」「效能變慢」「部署後異常」「每週 error 統整」「寫事件報告」「incident report」時使用。涵蓋 CloudWatch Logs（Insights + FilterLogEvents）、ALB Logs（Athena）、CloudWatch Metrics（Redis/ECS/ALB/RDS）、ECS 容器診斷、CodePipeline 部署比對；支援定期掃描與特定問題調查兩種入口。
 argument-hint: "[trace-id, error keyword, or 'scan']"
 allowed-tools:
   - Bash(aws *)
@@ -18,7 +17,7 @@ effort: high
 
 # AWS Production Investigation
 
-此 skill 內建一套 AWS 託管 Web 應用的調查流程：UTC+8/TWN、Python structlog backend、Nuxt SSR/pino frontend、ASGI/FastAPI exception pattern、Jira ticket 與 3-30-300 事件報告結構。這些是內建經驗，不是唯一做法；若實際專案不同，先依 log、code、config 的觀察結果調整當次查詢與報告。
+此 skill 內建一套 AWS 託管 Web 應用的調查流程：UTC+8/TWN、Python structlog backend、Nuxt SSR/pino frontend、ASGI/FastAPI exception pattern、Jira ticket 與摘要、本文、附錄三層的事件報告結構。這些是內建經驗，不是唯一做法；若實際專案不同，先依 log、code、config 的觀察結果調整當次查詢與報告。
 
 ## Model 使用策略
 
@@ -26,8 +25,6 @@ effort: high
 - **主對話**＝當次 session 目前使用中的模型
 - **最低階可用模型**＝可用模型中最便宜/最快的一級，用於單純執行＋擷取
 - **中複雜度可用模型**＝高於最低階、低於主對話層級的可用模型，用於需管理多支平行查詢或初步分類的場合（最低階模型易在此犯錯）
-
-> 現況對照註記（2026-07，僅供理解，非執行依據）：Haiku＝最低階、Sonnet＝中複雜度、Opus＝最高可用。
 
 | 角色 | Model | 原因 |
 |------|-------|------|
@@ -109,17 +106,24 @@ fields @timestamp, @message
 
 ### Phase 0：載入 Config + 專案知識
 
+本機設定與專案知識都放在 `~/.claude/aws-investigate/`。plugin 升版後安裝目錄會換，所以 skill 目錄（`${CLAUDE_SKILL_DIR}`）只當舊版相容的備援位置，新建的檔案一律寫到前者。
+
 **Step 1：Config**
 
-檢查 `${CLAUDE_SKILL_DIR}/config.local.yaml` 是否存在：
+依序找以下兩處，先找到的為準：
 
-**存在** → 讀取為 `{config}` 變數，用於後續所有預設值。結構定義見 `${CLAUDE_SKILL_DIR}/config.example.yaml`（含每個欄位的用途註解）。
+1. `~/.claude/aws-investigate/config.local.yaml`
+2. `${CLAUDE_SKILL_DIR}/config.local.yaml`
+
+**找到** → 讀取為 `{config}` 變數，用於後續所有預設值。結構定義見 `${CLAUDE_SKILL_DIR}/config.example.yaml`（含每個欄位的用途註解）。若是在第 2 處找到，提議使用者搬到第 1 處，避免下次升版後找不到。
+
+**兩處都沒有** → 讀 `references/setup.md`：先照「從舊版本搬移」找舊版本留下的設定檔與專案知識並複製到新位置，找不到才跑「首次設定流程」，完成後繼續 Step 2。
 
 **模式偵測**：檢查 `config.trace_id.backend_field` 是否存在且非空——存在則啟用 **trace-enhanced** 模式（調查工具箱 T2-B、Scan 1 第三·五層 trace 去重可用），不存在則使用 **log-only** 模式（所有 trace 步驟跳過，行為同修改前）。
 
 **Step 2：專案特定知識**
 
-檢查 `${CLAUDE_SKILL_DIR}/context.local.md` 是否存在：
+依序找 `~/.claude/aws-investigate/context.local.md`、`${CLAUDE_SKILL_DIR}/context.local.md`，先找到的為準，記為 `{context_path}`。兩處都沒有、且 Step 1 沒有跑過舊版本搬移時（設定檔已在新位置），照 `references/setup.md` 的「從舊版本搬移」只找 `context.local.md`。仍然沒有時，`{context_path}` 設為 `~/.claude/aws-investigate/context.local.md`，之後新建一律寫這裡。
 
 **存在** → 讀取並記住內容。此檔案是 `config.local.yaml` 的補充——config 放結構化設定，這裡放 config 裝不下的自由格式知識：log schema、trace ID 格式、code path 注意事項、已知雜訊 pattern、歷史案例、report convention、issue tracker 慣例、已驗證陷阱等。在後續所有查詢和判讀中都需要參照。
 
@@ -133,63 +137,13 @@ fields @timestamp, @message
 - Log group 對應 → 名稱與實際 tech stack 是否一致
 - 報告與追蹤慣例 → issue tracker 欄位、事件報告格式、團隊 owner 標記方式
 
-產出 `context.local.md`，包含三類內容：
+產出 `{context_path}`，包含三類內容：
 
 1. **Log 格式與操作知識**（影響「怎麼查」）——error log 配對關係、trace ID 格式、欄位存在條件陷阱、API caller 的 duration log 陷阱、log group 名稱 vs 實際 tech stack
 2. **已知行為模式**（影響「怎麼判」）——各觀測層（前端 ALB / 後端 ALB / 前端 CW / 後端 CW / Redis）獨立表格，欄位：模式 | 影響範圍 | 判斷 | 說明 | 發現時間
 3. **報告與追蹤慣例**（影響「怎麼交付」）——issue tracker 命名、owner 標記、報告固定章節、團隊慣用嚴重度定義
 
 **內建流程不符合時**：不要先要求使用者改設定，也不要假設另一套架構。先用探索查詢、Grep/Read、現有 config 找出實際規則；當某個規則可重複使用時，在調查後更新 `context.local.md`。
-
----
-
-**Config 不存在時** → 進入首次設定流程：
-
-1. 說明：「這個 skill 需要一些 AWS 環境設定才能查詢。我會先偵測環境，再請你確認——答案會儲存在 `config.local.yaml`，只需要做一次。」
-
-2. **偵測 AWS Profiles**：執行 `aws configure list-profiles`。
-
-3. **AskUserQuestion（第一輪——核心設定 + repo 路徑）**：
-   - AWS profile（radio）：「要用哪個 profile 查詢 production 環境？」顯示偵測到的 profiles 作為選項。
-   - Staging profile（radio）：「Staging 環境的 profile？（比對 prod/staging 差異時會用到）」若偵測到的 profiles 中有明顯 staging 名稱可推薦。若專案沒有 staging 環境，選「沒有 staging 環境」。
-   - Log group prefix：「Log group 的共同前綴是什麼？（例如 `/app/myservice`，用來找出要掃描的 log groups）」
-   - 時區（radio）：預設推薦 UTC+8 / TWN。
-   - 相關 codebase repo 路徑：「其他相關的 codebase repo 路徑？（我會掃描程式碼自動偵測 log 格式、trace ID、Redis 等設定值）」選項：自訂輸入。若只有當前 repo，選「只有當前 repo」。
-
-4. **偵測 Log Groups + 格式**（用使用者選的 profile 和 prefix）：
-   - 執行 `aws logs describe-log-groups` 列出符合的 log groups
-   - 用 AskUserQuestion（checkbox）讓使用者確認要掃描哪些 log groups（預設全選）
-   - 用 AskUserQuestion 詢問每個選中 log group 的格式：「這些 log groups 分別是什麼格式？（影響查詢語法和欄位名稱）」提供選項：Python structlog / Nuxt SSR (pino) / 其他
-
-5. **Codebase 掃描自動偵測**：用 Grep/Read 掃描當前 repo + 使用者提供的 related_repos，偵測以下設定的建議值：
-
-   | 偵測目標 | 掃描方式 | 對應 config 欄位 |
-   |---------|---------|-----------------|
-   | Error type 欄位 | logging config（structlog 的 `exc_info`、pino 的 `err.type`） | `error_type_field` |
-   | Trace ID | middleware / request context / header 設定 | `trace_id.*` |
-   | Redis key pattern | Redis client usage（prefix、key 模板） | `redis_key_prefixes` |
-   | Error keywords | error handler / exception logger 實作 | `backend_error_keywords` |
-
-   此步驟與 Phase 0 Step 2（context.local.md 生成）共用掃描邏輯——差異在於首次設定將結果寫入 config，後續調查則寫入 context.local.md。未偵測到的欄位留空，使用者可手動填寫或在後續調查中動態探索。
-
-6. **偵測 Athena（ALB log 查詢用）**：
-   - 執行 `aws athena list-work-groups --profile {profile}`
-   - 若偵測到 workgroup：
-     a. 只有一個 → 自動選用，告知使用者
-     b. 多個 → AskUserQuestion 讓使用者選擇
-   - 執行 `SHOW TABLES` 列出可用的 table
-   - 用 AskUserQuestion 讓使用者選擇 ALB table：「以下是 Athena 中的 table，哪些是 ALB access log？（用來分析 container crash、慢請求等 CloudWatch 看不到的問題）」
-   - 若偵測不到 workgroup 或 table：「你的專案有用 Athena 查詢 ALB log 嗎？若沒有使用，選『沒有使用 Athena』」
-
-7. **AskUserQuestion（第二輪——確認自動偵測結果）**：展示 step 5 偵測到的建議值，請使用者確認或修改：
-   - Redis key prefix：若偵測到則預填，否則手動。「Redis 的 key prefix pattern？」若專案沒用 Redis，選「沒有使用 Redis」。
-   - Backend error keywords：若偵測到則預填（如 `occur ERROR`、`Exception in ASGI`），否則手動。
-   - Error type 欄位：若偵測到則預填（如 `python_structlog: exc_info.0`），否則留空（掃描時動態探索）。
-   - Trace ID 設定：若偵測到則顯示建議值（如 `backend_field: amz_trace_id`），否則提供「未使用 trace ID」選項。
-
-8. 依 `${CLAUDE_SKILL_DIR}/config.example.yaml` 的結構，將所有答案寫入 `${CLAUDE_SKILL_DIR}/config.local.yaml`。
-9. **確保報告產出被 gitignore**：檢查 `{config.report_dir}/.gitignore` 是否存在。若不存在，建立內容為 `*` 和 `!.gitignore` 兩行，整個子目錄的產出都不進 git。
-10. 告知使用者：「設定已儲存，未來可直接編輯此檔案修改。」
 
 ### 快捷入口（帶參數時）
 
@@ -362,7 +316,7 @@ aws logs describe-log-groups \
 
 ## 報告補完互動（技術調查完成後、產出最終報告前）
 
-AI agent 能查到技術根因和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 向使用者收集以下資訊。所有收集到的資訊直接寫入最終報告，報告產出後不預期有人回來更新。
+AI agent 能查到技術面的根本原因和指標，但有些資訊只有人知道。在產出最終報告前，用 AskUserQuestion 向使用者收集以下資訊。所有收集到的資訊直接寫入最終報告，報告產出後不預期有人回來更新。
 
 ### 1. 使用者影響（AI 查不到）
 
@@ -373,13 +327,13 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 
 使用者回答「不確定」或「沒有」的項目不放進報告。
 
-### 2. 系統性根因（AI 查不到）
+### 2. 流程面的根本原因（AI 查不到）
 
 - 這個問題有沒有可能在更早的階段被發現？（code review / 測試 / 監控）
 - 是什麼流程缺口讓它到了線上才爆發？
 - 有沒有類似的風險可能存在於其他地方？
 
-使用者若說「目前沒想到」，報告就只保留技術根因，不硬塞。
+使用者若說「目前沒想到」，報告就只保留技術面的根本原因，不硬塞。
 
 ### 3. Action Items 審核
 
@@ -392,41 +346,43 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 
 ---
 
-## 報告自檢（報告完成後、提交使用者前執行）
+## 報告完成條件
 
-### Pass 1：完整性
-- [ ] 每個 🔴 高/🟡 中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
-- [ ] 每個數據聲明可追溯到查詢來源（`[Qn]` 標記位置規則見 `report-guidelines.md`「數據與來源」）
-- [ ] 行動清單每行 6 欄位齊全（欄位定義見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
-- [ ] 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現
-- [ ] 報告路徑正確：`{config.report_dir}/YYYY-MM-DDTHHMM.md`
-- [ ] 涉及基礎設施指標異常的 🔴 高/🟡 中 附 CloudWatch 圖表（PNG），存放於 `{config.report_dir}/assets/{basename}/`
+報告符合以下條件才算完成。
 
-### Pass 2：正確性
-- [ ] 🔴 高/🟡 中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）
-- [ ] 「扣除雜訊後」的數字計算邏輯正確（去重、排除爬蟲）
-- [ ] ASCII flow 中的系統元件名稱與實際 log group 一致
-- [ ] 敏感資訊（token、secret、client_secret）已遮蔽
-- [ ] 若發現已知行為已被修復，行動清單加入 `[維護] 更新 context.local.md：標記 {pattern} 為 [已修復 YYYY-MM]`
+**完整性**
+- 每個 🔴 高/🟡 中 問題六面向齊全：情境/錯誤流程/root cause/用戶影響/潛在議題/建議
+- 每個數據聲明可追溯到查詢來源（`[Qn]` 標記位置規則見 `report-guidelines.md`「數據與來源」）
+- 行動清單每行 6 欄位齊全（欄位定義見 `report-guidelines.md`「行動清單」；追蹤欄在互動階段後補完）
+- 查詢來源 `<details>` 內每個 Qn 都有完整 CLI 指令可重現
+- 報告路徑正確：`{config.report_dir}/YYYY-MM-DDTHHMM.md`
+- 涉及基礎設施指標異常的 🔴 高/🟡 中 附 CloudWatch 圖表（PNG），存放於 `{config.report_dir}/assets/{basename}/`
 
-### Pass 3：可讀性（原則見 `report-guidelines.md`）
-- [ ] 3-30-300 分層：不展開任何東西的讀者就能做決策
-- [ ] Executive Card 只包含事實和已決定的事，沒有未經團隊決策的時程或承諾
-- [ ] Action Items 明確標示為初步建議（Proposed），沒有把 AI 建議寫成團隊已定案的決策
-- [ ] 格式：「發生什麼事」用 bullet points、「為什麼會這樣」和「排除的假設」用表格，不是整段散文
-- [ ] 語氣為 Professional Plain Language（Knowledgeable Friend），不是書面腔或過度口語
-- [ ] DRY：同一事實只在一個 section 出現
-- [ ] 精簡結構：「發生什麼→為什麼→怎麼辦」，不是調查過程的流水帳
-- [ ] Flexible Template：只保留適用的 section，不適用的直接省略，不硬湊字數
-- [ ] 技術細節與主要敘事分離：逐行 code reference、查證段落、完整查詢指令不在報告本文
-- [ ] 語言精準：混合結果用限定語、不同觀測層數據不混行（見 `analysis-principles.md`）
-- [ ] 報告文字預設台灣正體中文；使用者指定其他語言時從之
+**正確性**
+- 🔴 高/🟡 中 的 root cause 分析有 Grep/Read 程式碼證據支撐，非推測（見 `analysis-principles.md`「驗證守則」）
+- 「扣除雜訊後」的數字計算邏輯正確（去重、排除爬蟲）
+- ASCII flow 中的系統元件名稱與實際 log group 一致
+- 敏感資訊（token、secret、client_secret）已遮蔽
+- 若發現已知行為已被修復，行動清單加入 `[維護] 更新 context.local.md：標記 {pattern} 為 [已修復 YYYY-MM]`
+
+**可讀性**（原則見 `report-guidelines.md`）
+- 摘要層自成完整結論：不展開任何東西的讀者就能做決策
+- Executive Card 只包含事實和已決定的事，沒有未經團隊決策的時程或承諾
+- Action Items 明確標示為初步建議（Proposed），沒有把 AI 建議寫成團隊已定案的決策
+- 格式：「發生什麼事」用 bullet points、「為什麼會這樣」和「排除的假設」用表格，不是整段散文
+- 語氣為 Professional Plain Language（Knowledgeable Friend），不是書面腔或過度口語
+- DRY：同一事實只在一個 section 出現
+- 精簡結構：「發生什麼→為什麼→怎麼辦」，不是調查過程的流水帳
+- Flexible Template：只保留適用的 section，不適用的直接省略，不硬湊字數
+- 技術細節與主要敘事分離：逐行 code reference、查證段落、完整查詢指令不在報告本文
+- 語言精準：混合結果用限定語、不同觀測層數據不混行（見 `analysis-principles.md`）
+- 報告文字預設台灣正體中文；使用者指定其他語言時從之
 
 ---
 
 ## 調查後維護
 
-報告完成並通過自檢後，檢查是否有新知識需要更新 `context.local.md`：
+報告符合完成條件後，檢查是否有新知識需要更新 `context.local.md`：
 
 - 發現新的 error pattern 或 log 格式陷阱 → 新增到「Log 格式與操作知識」
 - 確認某個 error 是固定雜訊（本次掃描期間內每天穩定出現、量體無異常波動、不需人工關注）→ 新增到對應觀測層的「已知行為模式」表格，**含精確的排除條件**（filter pattern / status code / path 等），讓未來掃描在查詢層直接排除以節省 token 與查詢費用。排除條件不確定時問使用者確認
@@ -434,4 +390,4 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 - 發現 log group 名稱與 tech stack 不一致 → 記錄對應關係
 - 發現專案穩定規則（log schema、trace ID、報告欄位、issue tracker 慣例）→ 新增到對應章節
 
-若 `context.local.md` 不存在，自動建立——依 Phase 0 Step 2 的章節結構寫入本次調查發現的內容。
+若 `context.local.md` 不存在，自動建立在 `{context_path}`（`~/.claude/aws-investigate/context.local.md`）——依 Phase 0 Step 2 的章節結構寫入本次調查發現的內容。

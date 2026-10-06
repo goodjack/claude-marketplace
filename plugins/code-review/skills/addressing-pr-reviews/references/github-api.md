@@ -6,6 +6,14 @@ databaseId），兩者擇一即可，本文件以 GraphQL 為主、REST 為備�
 
 執行時把 `{owner}` `{repo}` `{pr}` `{threadId}` 替換成實際值。
 
+## 目錄
+
+- 撈出全部 review threads（含解決狀態）
+- 回覆某個 thread
+- 編輯 / 刪除自己的回覆
+- Resolve / Unresolve conversation
+- PR 基本資訊與 diff（查證用）
+
 ## 撈出全部 review threads（含解決狀態）
 
 ```bash

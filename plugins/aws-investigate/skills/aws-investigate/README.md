@@ -6,7 +6,7 @@
 
 - **定期掃描**：彙總 CloudWatch Logs、ALB logs（Athena）、基礎設施指標的錯誤，產出分級報告
 - **特定問題調查**：透過 trace ID 追蹤個別 error、分析 exception 內容、追查 root cause 到程式碼
-- **自動報告產出**：產出 3-30-300 progressive disclosure 結構的事件報告
+- **自動報告產出**：產出摘要、本文、附錄三層的事件報告，摘要層自成完整結論
 
 ### 支援的 AWS 服務
 
@@ -55,7 +55,7 @@ cd claude-marketplace
 
 ## 首次設定
 
-第一次使用時，skill 會引導你完成互動式設定，產出 `config.local.yaml`：
+第一次使用時，skill 會引導你完成互動式設定，產出 `~/.claude/aws-investigate/config.local.yaml`：
 
 1. **AWS profiles** — production/staging 使用哪些 CLI profile
 2. **Log group prefix** — CloudWatch log group 探索用的預設前綴
@@ -64,7 +64,7 @@ cd claude-marketplace
 5. **Redis key prefix** — Redis memory 調查用的 key 前綴（選填）
 6. **時區** — 報告時間顯示
 
-你也可以手動複製 `config.example.yaml` 為 `config.local.yaml` 並編輯。
+你也可以手動複製 `config.example.yaml` 為 `~/.claude/aws-investigate/config.local.yaml` 並編輯。
 
 ## 使用方式
 
@@ -86,9 +86,11 @@ cd claude-marketplace
 
 ## 設定檔
 
+兩個本機檔都放在 `~/.claude/aws-investigate/`。plugin 升版後安裝目錄會換，放在 skill 目錄外才不會在升版後失聯。skill 會先找 `~/.claude/aws-investigate/`，找不到再找目前版本的 skill 目錄；兩處都沒有時，會從 plugin 快取裡舊版本的 skill 目錄找既有的設定與專案知識，經你同意後複製到新位置（有多份就列出來讓你選，不覆寫新位置已有的檔），都找不到才跑首次設定。
+
 ### `config.local.yaml`
 
-儲存你的環境特定設定。**已加入 .gitignore**，不會意外 commit 敏感資訊。
+儲存你的環境特定設定。放在 repo 與 skill 目錄外，不會意外 commit 敏感資訊。
 
 欄位說明見 `config.example.yaml`。
 
@@ -98,7 +100,7 @@ cd claude-marketplace
 
 此檔案為**選填**——首次使用時 skill 會提議掃描 codebase 建立基礎版，之後在每次調查中持續更新。沒有它 skill 仍可正常運作，但有了它調查效率會持續提升。
 
-內建調查流程使用 TWN/UTC+8、Python structlog、Nuxt SSR/pino、ASGI/FastAPI、Jira ticket 與 3-30-300 事件報告結構。若實際專案不同，agent 會先依 log / code / config 觀察結果調整當次調查，並把穩定規則記錄到 `context.local.md`。
+內建調查流程使用 TWN/UTC+8、Python structlog、Nuxt SSR/pino、ASGI/FastAPI、Jira ticket 與摘要、本文、附錄三層的事件報告結構。若實際專案不同，agent 會先依 log / code / config 觀察結果調整當次調查，並把穩定規則記錄到 `context.local.md`。
 
 ## 檔案結構
 
@@ -106,19 +108,23 @@ cd claude-marketplace
 aws-investigate/
 ├── SKILL.md                    # 主 skill 指引
 ├── config.example.yaml         # 設定範例（附說明）
-├── config.local.yaml           # 你的本地設定（git-ignored）
-├── context.local.md            # 專案特定知識（git-ignored，AI 維護）
-├── .gitignore
+├── .gitignore                  # 忽略舊版放在這裡的本機檔
 ├── README.md
 └── references/
+    ├── setup.md                # 從舊版本搬移與首次設定（沒有設定檔時才用）
     ├── query-basics.md         # CloudWatch 查詢基礎
     ├── periodic-scan.md        # Scan 1-5 完整流程
     ├── investigation-toolkit.md # T1-T5 深入調查工具
     ├── known-patterns.md       # 跨組織通用的已知行為
     ├── aws-tools.md            # AWS 診斷工具速查
     ├── metrics-charts.md       # CloudWatch 圖表產生模板
+    ├── report-guidelines.md    # 報告撰寫指引
     ├── report-template.md      # 報告模板（定期掃描 + 事件）
     └── analysis-principles.md  # 分析判讀原則與陷阱
+
+~/.claude/aws-investigate/
+├── config.local.yaml           # 你的本地設定
+└── context.local.md            # 專案特定知識（AI 維護）
 ```
 
 ## 前置需求

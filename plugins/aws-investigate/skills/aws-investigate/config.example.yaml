@@ -1,8 +1,8 @@
 # AWS Investigation Skill - 設定範例
-# 複製此檔案為 config.local.yaml 並填入你的值。
+# 複製此檔案為 ~/.claude/aws-investigate/config.local.yaml 並填入你的值。
 # 或讓 skill 在首次執行時透過互動式提問引導你完成設定。
 #
-# config.local.yaml 已加入 .gitignore，不會意外 commit
+# 放在 skill 目錄外，plugin 升版後不會失聯，也不會意外 commit
 # 環境特定或敏感的資訊。
 
 # ─── AWS Profile 預設值 ───────────────────────────────────────────────────────

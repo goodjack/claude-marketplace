@@ -1,5 +1,15 @@
 # 查詢基礎（共用參考）
 
+## 目錄
+
+- 查詢工具選擇
+- Log 格式差異
+- Log Level 判讀策略
+- Insights CLI 操作
+- 查詢失敗處理
+- Subagent 回傳格式模板
+- Trace ID 查詢模式
+
 ## 查詢工具選擇
 
 根據查詢目的選擇最經濟的工具：
@@ -154,7 +164,7 @@ aws logs start-query \
 | `recordsMatched: 0` | 不代表沒問題——確認 log group 和時間範圍是否正確，再試一次 |
 | `status: Running` 超過 30 秒 | 取消查詢，縮小範圍或減少 log group 數量後重試 |
 | SSO Token 過期（`Token has expired and refresh failed`） | 執行 `aws sso login`（**不帶 `--profile`**，SSO session 是共用的），登入後繼續 |
-| `LimitExceededException` | 等 5 秒再重試（CloudWatch 並發查詢上限） |
+| `LimitExceededException` | 等 5 秒再重試（CloudWatch 同時查詢數上限） |
 | FilterLogEvents `ThrottlingException` | 等 2 秒 + exponential backoff（5 TPS 硬限） |
 
 ---

@@ -21,9 +21,8 @@ allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/scripts/*)
   - Bash(git *)
   - Bash(gh *)
-  - TaskCreate
-  - TaskUpdate
-  - TaskList
+  - Bash(mktemp *)
+  - Bash(rmdir *)
   - AskUserQuestion
 ---
 
@@ -45,17 +44,10 @@ allowed-tools:
 - 不執行環境準備與還原（階段 1、6）
 - **唯讀**：只發佈 review comments，絕不修改程式碼或推送 commits
 - **自主判斷**：無法詢問使用者，需自行決定所有判斷
-- 不使用 TaskCreate / TaskUpdate / AskUserQuestion
+- 不使用 AskUserQuestion
 
 ### 互動模式（系統環境為 `interactive`）
 
-- 使用 TaskCreate 管理審查進度（每個階段一個任務）：
-  1. 「準備環境」/ activeForm: 「準備審查環境中」
-  2. 「取得變更差異」/ activeForm: 「分析中」
-  3. 「讀取與分析修改檔案」/ activeForm: 「讀取與分析程式碼中」
-  4. 「發佈審查結果」/ activeForm: 「發佈審查結果中」
-  5. 「完成審查」/ activeForm: 「完成審查中」
-  6. 「還原環境」/ activeForm: 「還原環境中」
 - 分析完成後如有疑問，使用 AskUserQuestion 工具
 - 任何修正或刪除操作前必須先詢問使用者確認
 
@@ -79,11 +71,9 @@ $ARGUMENTS
 
 ```bash
 git fetch
-git status
-git branch --show-current
 ```
 
-若有未提交的變更，執行 `git stash`。記錄當前分支名稱。
+不在使用者目前的工作目錄 `git stash` 或切換分支：同一個工作目錄可能還有其他工作中的未 commit 修改。PR review 模式在階段 2 另開臨時 worktree checkout，審完於階段 6 移除。
 
 ---
 
@@ -112,9 +102,55 @@ gh pr view <number> --json baseRefName,headRefName,headRefOid,mergeable
 
 > **WHY headRefOid?** GitHub API 需要 PR head 的 commit SHA 作為 `commit_id` 來錨定 review comments。用 `baseRefOid` 會導致 HTTP 422。
 
-若 `mergeable` 為 `null`：等待 5 秒後重新執行，仍為 `null` 則視為 `false`。
+`mergeable` 有三種值：
 
-**`mergeable` 為 `true`：**
+- `MERGEABLE`：可以合併，checkout merge result
+- `CONFLICTING`：有衝突，改看 PR branch，記錄為「有 merge conflict」
+- `UNKNOWN`：GitHub 還沒算完。等 5 秒重查一次；仍是 `UNKNOWN` 就改看 PR branch，記錄為「合併狀態尚未確定」，不可說成有衝突
+
+衝突或尚未確定的狀態寫進階段 4 批次 review body 最前面的警告。
+
+互動模式與 CI 模式的 checkout 方式不同，只執行符合目前模式的那一節。
+
+##### 互動模式：臨時 worktree
+
+不動使用者目前的工作目錄。
+
+1. 建立本場專用的臨時目錄，記下印出的絕對路徑當作 `<review_dir>`（`mktemp` 每次產生不同路徑；shell 變數不會跨指令保留，後續指令直接寫這個路徑）：
+
+   ```bash
+   mktemp -d "${TMPDIR:-/tmp}/review-pr-<number>-XXXXXX"
+   ```
+
+2. 先建立空的 worktree，再在 worktree 裡 fetch 與 checkout，三步串在同一條指令。fetch 寫在 worktree 自己的 `FETCH_HEAD`，同一個 repo 同時有別場審查也不會互相覆蓋；任一步失敗就停止並跳到階段 6 清理，不要沿用任何先前留下的 `FETCH_HEAD`。
+
+   `MERGEABLE`：
+
+   ```bash
+   git worktree add --detach --no-checkout <review_dir> && git -C <review_dir> fetch origin pull/<number>/merge && git -C <review_dir> checkout --detach FETCH_HEAD
+   ```
+
+   `CONFLICTING` 或仍為 `UNKNOWN`：
+
+   ```bash
+   git worktree add --detach --no-checkout <review_dir> && git -C <review_dir> fetch origin pull/<number>/head && git -C <review_dir> checkout --detach FETCH_HEAD
+   ```
+
+3. 確認 checkout 的是這個 PR 的最新 head：merge result 用 `git -C <review_dir> rev-parse HEAD^2`，PR branch 用 `git -C <review_dir> rev-parse HEAD`，結果要等於 `headRefOid`。不相符代表 PR 在查詢後又被推了新 commit，清理本場目錄後從 `gh pr view` 重來一次；重來仍不相符（GitHub 的 merge result 可能還沒重算），改走 PR branch 流程，並在 review body 寫「合併狀態尚未確定」。
+
+4. 查看變更差異：
+
+   ```bash
+   git -C <review_dir> diff origin/<baseRefName>...HEAD
+   ```
+
+之後的讀檔、Grep 與 git 指令都對 `<review_dir>` 執行（讀檔用 `<review_dir>` 底下的絕對路徑，git 用 `git -C <review_dir>`）。
+
+##### CI 模式：在目前目錄 checkout
+
+CI 的工作目錄是一次性的，直接在原地 checkout。
+
+`MERGEABLE`：
 
 ```bash
 # 使用 Detached HEAD，避免建立本地分支導致污染與撞名
@@ -122,13 +158,11 @@ git fetch origin pull/<number>/merge
 git checkout --detach FETCH_HEAD
 ```
 
-**`mergeable` 為 `false`：**
+`CONFLICTING` 或仍為 `UNKNOWN`：
 
 ```bash
 gh pr checkout <number>
 ```
-
-記錄 merge conflict 狀態（警告併入階段 4 批次 review body 最前面）。
 
 查看變更差異：
 
@@ -142,6 +176,8 @@ git diff origin/<baseRefName>...HEAD
 UPSTREAM=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/main")
 git diff "origin/${UPSTREAM#origin/}...HEAD"
 ```
+
+另跑 `git diff HEAD`，把工作目錄內未 commit 的修改（含已 stage 與未 stage）一起納入審查；未追蹤的新檔不在 diff 裡，用 `git status --short` 列出後直接讀取。
 
 不需 checkout merge result，不需記錄 headRefOid。
 
@@ -170,12 +206,13 @@ git diff "origin/${UPSTREAM#origin/}...HEAD"
 
 #### 嚴重度判斷
 
-- 🔴 **MUST**（嚴重問題）：安全漏洞、正確性錯誤（資料遺失、邏輯錯誤）、穩定性問題、違反團隊明確規範
+- 🔴 **MUST**（嚴重問題）：安全漏洞、正確性錯誤（資料遺失、邏輯錯誤）、穩定性問題
 - 🟠 **SHOULD**（需要改進）：可維護性（重複邏輯、過深巢狀）、非關鍵路徑的穩健性、非關鍵效能問題（如 N+1 query）、業界最佳實踐
 - 🔵 **MAY**（建議優化）：超出 linter 範圍的風格偏好、無明確優劣的替代方案。按價值排序，最多列出 5 個，超過在摘要標註「另有 N 個同類建議」
+- **違反團隊明文規範**：沿用該條規範自己標的等級（MUST／SHOULD／MAY）；規範沒有標等級時才用 MUST
 - 🟣 **PRE-EXISTING**（既有問題，附加標記）：用 `git blame` 確認問題程式碼在 diff 之外已存在後**附加**此標記——嚴重度仍依問題本身標為 MUST/SHOULD/MAY，PRE-EXISTING 只註記來源，與嚴重度並存、不取代（否則高嚴重度的既有問題會被遮蔽，例如既有的 MUST 級安全漏洞只剩紫色標記）。PR review 表示「非此 PR 引入」；local review 表示「既有問題，考慮一併修正」
 
-決策樹：可能導致錯誤結果或安全風險？→ MUST。團隊有明確規範？→ MUST。6 個月後會讓人踩坑？→ SHOULD。只是「我覺得另一種寫法更好」？→ MAY。
+決策樹：可能導致錯誤結果或安全風險？→ MUST。違反團隊明文規範？→ 沿用該條的等級，沒標等級才 MUST。6 個月後會讓人踩坑？→ SHOULD。只是「我覺得另一種寫法更好」？→ MAY。
 
 #### 分析原則
 
@@ -230,7 +267,7 @@ gh api repos/OWNER/REPO/pulls/NUMBER/reviews --input - <<'EOF'
 {
   "event": "COMMENT",
   "commit_id": "階段 2 記錄的 headRefOid",
-  "body": "（若有 merge conflict）⚠️ 此 PR 有 merge conflict，review 基於 PR branch。\n\n---\n\n共發現 N 個回饋（其中 Z 個為既有問題 PRE-EXISTING）：\n\n**嚴重問題** (X)\n- {主題emoji} 標題1\n\n**需要改進** (Y)\n- {主題emoji} 標題2（PRE-EXISTING）\n\n**建議優化** (W)\n- {主題emoji} 標題3\n\n<sub>🤖 Reviewed by {模型名稱} · code-review v{plugin 版本}</sub>",
+  "body": "（有 merge conflict 時）⚠️ 此 PR 有 merge conflict，review 基於 PR branch。（合併狀態尚未確定時）⚠️ GitHub 尚未算出合併狀態，review 基於 PR branch。\n\n---\n\n共發現 N 個回饋（其中 Z 個為既有問題 PRE-EXISTING）：\n\n**嚴重問題** (X)\n- {主題emoji} 標題1\n\n**需要改進** (Y)\n- {主題emoji} 標題2（PRE-EXISTING）\n\n**建議優化** (W)\n- {主題emoji} 標題3\n\n<sub>🤖 Reviewed by {模型名稱} · code-review v{plugin 版本}</sub>",
   "comments": [
     {
       "path": "file.py",
@@ -255,8 +292,8 @@ Badge URL：
 - `commit_id` 使用階段 2 記錄的 `headRefOid`（不是 `baseRefOid`）
 - HEREDOC 使用單引號 `'EOF'` 形式，內容不要跳脫（不要用 `\"` 或 `` \` ``），以使特殊字元在 GitHub 正確顯示
 - Line comments 只能在 diff 範圍內，否則 HTTP 422
-- 模型名稱填入實際名稱（如 `Claude Opus 4.6`），無法確定填 `unknown model`；版本取自環境資訊
-- 無 merge conflict 時省略警告和分隔線
+- 模型名稱填行銷名稱而非 model id（例如 `Claude Opus 5.5`，不寫 `claude-opus-5-5`），無法確定填 `unknown model`；版本取自環境資訊
+- `MERGEABLE` 時省略警告和分隔線；兩種警告只會出現其中一種
 - 無問題時 body 以「無發現嚴重問題」開頭
 
 僅在 line comment 無法表達時，用獨立的 `gh pr review --comment` 發佈，不要併入批次 review 的 `body` 欄位：
@@ -309,12 +346,20 @@ EOF
 
 ### 階段 6: 還原環境（僅互動模式 + PR review 模式）
 
-```bash
-git checkout <階段 1 記錄的原始分支>
-```
+清理本場在階段 2 建立的 `<review_dir>`。審查完成、中途失敗或被取消都要做。使用者的工作目錄沒有被動過，不需要切回分支或還原 stash。
 
-若階段 1 有執行 stash：
+只處理本場 `mktemp` 印出的那一個路徑；其他 `review-pr-*` 目錄與其他 worktree 可能屬於另一場進行中的審查，看起來像殘留也不碰。
 
-```bash
-git stash pop
-```
+1. 先移除 worktree。`worktree add` 成功過（包含之後 fetch 或 checkout 失敗）就會在這步清掉；不必先用 `git worktree list` 比對路徑，macOS 上 `mktemp` 印出的 `/var/...` 與 list 顯示的 `/private/var/...` 字串不同，比對會誤判。
+
+   ```bash
+   git worktree remove --force <review_dir>
+   ```
+
+2. 上一步回報 `<review_dir>` 不是 worktree（`worktree add` 失敗或還沒執行到），目錄是本場建立的空目錄，改用：
+
+   ```bash
+   rmdir <review_dir>
+   ```
+
+   `rmdir` 只刪空目錄；目錄不是空的就停下來回報路徑，不改用 `rm -rf`。
