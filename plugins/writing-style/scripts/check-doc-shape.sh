@@ -4,7 +4,7 @@
 # 定位：警示工具（人工判斷），可掛 PostToolUse hook 當確定性防線。
 # 只檢查 .md 檔；其他副檔名（或不存在的路徑）直接跳過，不輸出任何內容。
 #
-# 檢查項目（一至三預設啟用；四預設啟用；五需設環境變數才啟用）：
+# 檢查項目（一至四預設啟用；五、六需設環境變數才啟用）：
 #   1. 同步層長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
 #      第一個 "## " 之前的文字，超過門檻就提醒搬去小節。
 #   2. 符號串接——正文（排除 code fence ``` 與 ~~~／表格／frontmatter／單雙
@@ -22,7 +22,8 @@
 #   6. 給人讀的部分長度——第一個 "## " 之後，找第一條後接固定分界句的水平線（--- 或
 #      ***，不含 frontmatter 與 code fence 內）：線後第一個非空行以「以下供查證」開頭
 #      （SKILL.md 規定的寫法）。量這條線之前的去空白字元數（code fence 內不算），超過
-#      WRITING_STYLE_HUMAN_PART_LIMIT（預設 1500）就提醒。沒有固定分界句不套這項預算。
+#      WRITING_STYLE_HUMAN_PART_LIMIT 就提醒。預設不啟用：只有設了這個環境變數
+#      （例如 1500，團隊想自訂上限時）才檢查，未設完全不輸出。沒有固定分界句不套這項預算。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -38,7 +39,7 @@
 set -uo pipefail
 
 SYNC_LAYER_LIMIT="${WRITING_STYLE_SYNC_LAYER_LIMIT:-400}"
-HUMAN_PART_LIMIT="${WRITING_STYLE_HUMAN_PART_LIMIT:-1500}"
+HUMAN_PART_LIMIT="${WRITING_STYLE_HUMAN_PART_LIMIT:-}"
 
 # 沒有 perl 就什麼都查不了：立刻回報失敗，不要讓後面的邏輯悄悄跑出「無命中」
 # 的假結果（那會被讀成「通過」）。
@@ -302,7 +303,7 @@ if ($dash_count > 0 || $semi_count > 0) {
 # ---------- 檢查六：給人讀的部分長度（第一個 ## 到分隔線之間）----------
 {
   my $hl = $ENV{HUMAN_PART_LIMIT};
-  $hl = 1500 unless defined $hl && $hl =~ /^\d+$/;
+  $hl = (defined $hl && $hl =~ /^\d+$/ && $hl > 0) ? $hl : 0;   # 未設或非正整數：不檢查
   my @code = (0) x ($n + 2);
   my $fch = '';
   my $fn = 0;
@@ -334,7 +335,7 @@ if ($dash_count > 0 || $semi_count > 0) {
       if ($L[$i] !~ /^\s*$/) { $has_after = 1; last; }
     }
   }
-  if ($sep && $has_after) {
+  if ($hl && $sep && $has_after) {
     my $cnt = 0;
     for (my $i = $first_h2 + 1; $i < $sep; $i++) {
       next if $code[$i];
