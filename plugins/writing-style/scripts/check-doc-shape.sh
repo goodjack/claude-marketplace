@@ -19,6 +19,10 @@
 #      （例如 8.10）且主版號小於 9 才檢查 mermaid 區塊：沒加雙引號卻含全形
 #      標點（，（）：）的方框或箭頭標籤、--- 開頭的 frontmatter、@{ shape: … }。
 #      設為 9 以上或未設時完全不檢查，新版語法不當錯誤。
+#   6. 給人讀的部分長度——第一個 "## " 之後若有一條分隔線（--- 或 ***，不含
+#      frontmatter 與 code fence 內）且線後還有內容，量「第一個 ## 標題之後到
+#      分隔線之前」去空白的字元數（code fence 內容不算），超過
+#      WRITING_STYLE_HUMAN_PART_LIMIT（預設 1500）就提醒。沒有分隔線不檢查。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -34,6 +38,7 @@
 set -uo pipefail
 
 SYNC_LAYER_LIMIT="${WRITING_STYLE_SYNC_LAYER_LIMIT:-400}"
+HUMAN_PART_LIMIT="${WRITING_STYLE_HUMAN_PART_LIMIT:-1500}"
 
 # 沒有 perl 就什麼都查不了：立刻回報失敗，不要讓後面的邏輯悄悄跑出「無命中」
 # 的假結果（那會被讀成「通過」）。
@@ -51,7 +56,7 @@ for f in "$@"; do
   [[ -f "$f" ]] || continue
   checked_any=1
 
-  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" WRITING_STYLE_MERMAID_TARGET="${WRITING_STYLE_MERMAID_TARGET:-}" perl - "$f" <<'PERL_SCRIPT'
+  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" HUMAN_PART_LIMIT="$HUMAN_PART_LIMIT" WRITING_STYLE_MERMAID_TARGET="${WRITING_STYLE_MERMAID_TARGET:-}" perl - "$f" <<'PERL_SCRIPT'
 use strict;
 use warnings;
 use utf8;
@@ -288,6 +293,49 @@ if ($dash_count > 0 || $semi_count > 0) {
     my $msg = "Mermaid 圖有 ${total} 處在 Mermaid ${target} 可能畫不出來（WRITING_STYLE_MERMAID_TARGET）：\n" . join("\n", @shown);
     $msg .= "\n  …另 ${extra} 處" if $extra > 0;
     push @issues, $msg;
+  }
+}
+
+# ---------- 檢查六：給人讀的部分長度（第一個 ## 到分隔線之間）----------
+{
+  my $hl = $ENV{HUMAN_PART_LIMIT};
+  $hl = 1500 unless defined $hl && $hl =~ /^\d+$/;
+  my @code = (0) x ($n + 2);
+  my $fch = '';
+  for (my $i = 1; $i <= $n; $i++) {
+    if ($fm_end && $i <= $fm_end) { next; }
+    if ($fch eq '') {
+      if ($L[$i] =~ /^[ ]{0,3}${BT}{3,}/) { $fch = $BT; $code[$i] = 1; }
+      elsif ($L[$i] =~ /^[ ]{0,3}~{3,}/) { $fch = '~'; $code[$i] = 1; }
+      next;
+    }
+    $code[$i] = 1;
+    if ($L[$i] =~ /^[ ]{0,3}\Q$fch\E{3,}\s*$/) { $fch = ''; }
+  }
+  my $sep = 0;
+  if ($first_h2) {
+    for (my $i = $first_h2 + 1; $i <= $n; $i++) {
+      next if $code[$i];
+      if ($L[$i] =~ /^[ ]{0,3}(?:-{3,}|\*{3,})\s*$/) { $sep = $i; last; }
+    }
+  }
+  my $has_after = 0;
+  if ($sep) {
+    for (my $i = $sep + 1; $i <= $n; $i++) {
+      if ($L[$i] !~ /^\s*$/) { $has_after = 1; last; }
+    }
+  }
+  if ($sep && $has_after) {
+    my $cnt = 0;
+    for (my $i = $first_h2 + 1; $i < $sep; $i++) {
+      next if $code[$i];
+      my $t = $L[$i];
+      $t =~ s/\s+//g;
+      $cnt += length($t);
+    }
+    if ($cnt > $hl) {
+      push @issues, "給人讀的部分 ${cnt} 字，超過約一頁（${hl}）：把證據細節移到查證用的部分，主線每個結論只留一句證據摘要與它的限制；會改變判斷的限制不能刪。";
+    }
   }
 }
 
