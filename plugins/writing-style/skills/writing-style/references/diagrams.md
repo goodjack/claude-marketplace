@@ -101,7 +101,7 @@ digraph G {
 
 以下都在 viz.js 2.1.2 實測過，`splines=ortho` 那條除外。
 
-- **標題**用 `graph [label="標題\n ", labelloc=t, labeljust=l]` 畫在左上角，`\n ` 讓標題跟方框隔開。標題跟正文同樣受五種限制約束：觀測範圍要寫進標題（例如「6 次有完整記錄的當機」，不是「當機都」）；方框不放材料沒逐一確認的標籤（例如錯誤類型）；只觀測到一次的先後，用文字標「觀測到一次」，不畫成已確認的機制。
+- **標題**用 `graph [label="標題\n ", labelloc=t, labeljust=l]` 畫在左上角，`\n ` 讓標題跟方框隔開。標題跟正文同樣受五種限制約束：觀測範圍要寫進標題（例如「6 次有完整記錄的當機」，不是「當機都」）。方框不放材料沒逐一確認的標籤（例如錯誤類型）。只觀測到一次的先後，用文字標「觀測到一次」，不畫成已確認的機制。
 - **預設樣式**寫在 `node [...]` 與 `edge [...]`，個別方框只寫文字。字型寫成清單，輸出成 SVG 時會變成 CSS 字型清單。
 - **文字**一律加雙引號，換行用 `\n`。箭頭文字前加兩個空白（`label="  推論"`），跟線拉開距離。
 - **虛線**用 `style=dashed`。線型的意思一定要寫在圖例，箭頭文字也要說得出是時間先後、相關還是因果假說。
@@ -119,7 +119,7 @@ digraph G {
 ```graphviz
 digraph G {
   graph [rankdir=TB, nodesep=0.3, ranksep=0.42, pad=0.25, bgcolor="white",
-         label="結帳逾時都發生在清快取後一分鐘內，是否為原因待驗證\n ", labelloc=t, labeljust=l, fontsize=15,
+         label="記錄到的 6 次結帳逾時都在清快取後一分鐘內，是否為原因待驗證\n ", labelloc=t, labeljust=l, fontsize=15,
          fontname="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"]
   node  [shape=box, style=rounded, color="#b8b8b0", penwidth=1.2, fontcolor="#1f1f1f", fontsize=13,
          margin="0.22,0.1", fontname="PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"]
@@ -129,7 +129,7 @@ digraph G {
   A [label="排程每 10 分鐘清一次商品快取", style="rounded,filled", fillcolor="#e8f0fe", color="#1a73e8", penwidth=2]
   B [label="資料庫查詢量升到平常的三倍"]
   C [label="連線池用滿"]
-  H [label="前端自動重試\n請求加倍"]
+  H [label="前端自動重試"]
   E [label="使用者看到付款失敗"]
 
   A -> B [label="  之後一分鐘內"]
@@ -151,7 +151,7 @@ digraph G {
 }
 ```
 
-圖下的解讀只要一句：「左側的迴圈說明逾時為什麼越來越嚴重：前端重試又把查詢量推高。完整文字說明見查證用的部分『圖的文字版』。」
+圖下的解讀只要一句：「左側迴圈是疑似的惡化機制：逾時可能觸發前端重試，重試再推高查詢量，下一步關掉自動重試比對逾時次數。完整文字說明見查證用的部分『圖的文字版』。」
 
 ## Mermaid 寫法
 
@@ -161,7 +161,7 @@ digraph G {
 - **中文一律加雙引號**，方框與箭頭文字都是：`A["重啟後仍鎖住"]`、`-->|"已驗證有效"|`。8.10 遇到沒加引號又含全形標點（，（）：）的文字，整張圖會解析失敗。
 - **線型**：實線 `-->`、虛線 `-.->`。方框內換行用 `<br/>`。
 - **重點色**用 `classDef 名稱 fill:…,stroke:…` 加 `class 代號 名稱`。
-- **8.10 沒有的語法不要用**：`---` 開頭的 frontmatter（title、config）、`@{ shape: … }`、引號內的 Markdown 字串。設環境變數 `WRITING_STYLE_MERMAID_TARGET=8.10` 時，`check-doc-shape.sh` 會提醒這些寫法。
+- **8.10 沒有的語法不要用**：`---` 開頭的 frontmatter（title、config）、`@{ shape: … }`、引號內的 Markdown 字串。設環境變數 `WRITING_STYLE_MERMAID_TARGET=8.10` 時，`check-doc-shape.sh` 會提醒 frontmatter、`@{ shape: … }` 與沒加引號的全形標點，引號內的 Markdown 字串要自己檢查。
 - **配色**：預設是紫色方框、彎曲連線。第一行加 init 指令改成中性配色：`%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#ffffff", "primaryBorderColor": "#b8b8b0", "lineColor": "#8a8a82", "edgeLabelBackground": "#ffffff"}, "flowchart": {"curve": "linear"}}}%%`。init 裡的字串只能用雙引號，混用單引號整段會被忽略。11.5 會忽略其中的 `curve: linear`，連線仍是彎的。
 - **連線穿過不相關的方框**：8.10 沒有隱形連線語法，可以加一條普通連線，再用 `linkStyle 第幾條 stroke-width:0px` 藏起來，把方框拉到想要的位置，並用 `%%` 註解說明用途。
 - **沒有圖例與圖內標題**：標題寫在圖上方的正文，圖下那句解讀交代實線與虛線的意思。

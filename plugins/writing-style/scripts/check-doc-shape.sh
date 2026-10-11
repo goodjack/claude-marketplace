@@ -19,10 +19,12 @@
 #      （例如 8.10）且主版號小於 9 才檢查 mermaid 區塊：沒加雙引號卻含全形
 #      標點（，（）：）的方框或箭頭標籤、--- 開頭的 frontmatter、@{ shape: … }。
 #      設為 9 以上或未設時完全不檢查，新版語法不當錯誤。
-#   6. 給人讀的部分長度——第一個 "## " 之後若有一條分隔線（--- 或 ***，不含
-#      frontmatter 與 code fence 內）且線後還有內容，量「第一個 ## 標題之後到
+#   6. 給人讀的部分長度——第一個 "## " 之後，找第一條「明確的查證分界」：水平線
+#      （--- 或 ***，不含 frontmatter 與 code fence 內），且線後第一個非空行含
+#      分界關鍵詞（查證、不必讀、不用讀、完整記錄、原始記錄、給原廠）；普通水平線
+#      不算。找到且線後還有內容時，量「第一個 ## 標題之後到
 #      分隔線之前」去空白的字元數（code fence 內容不算），超過
-#      WRITING_STYLE_HUMAN_PART_LIMIT（預設 1500）就提醒。沒有分隔線不檢查。
+#      WRITING_STYLE_HUMAN_PART_LIMIT（預設 1500）就提醒。沒有明確分界不套這項預算。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -144,31 +146,32 @@ if ($first_h2 == 0) {
 }
 
 # ---------- 正文行判定：排除 frontmatter／code fence／表格 ----------
-# fence 前置 0–3 個空白都算（CommonMark 慣例）；``` 只能被 ``` 關閉、
+# fence 前置 0–3 個空白都算（CommonMark 慣例）；關閉 fence 要同字元、長度不小於開頭；``` 只能被 ``` 關閉、
 # ~~~ 只能被 ~~~ 關閉，不同字元不互相配對、不會誤關。
 my @is_body = (0) x ($n + 1);
 my $in_fence = 0;
 my $fence_type = '';
+my $fence_len = 0;
 for (my $i = 1; $i <= $n; $i++) {
   if ($fm_end && $i <= $fm_end) { $is_body[$i] = 0; next; }
   if (!$in_fence) {
-    if ($L[$i] =~ /^[ ]{0,3}${BT}{3,}/) {
-      $in_fence = 1; $fence_type = 'bt';
+    if ($L[$i] =~ /^[ ]{0,3}(${BT}{3,})/) {
+      $in_fence = 1; $fence_type = 'bt'; $fence_len = length($1);
       $is_body[$i] = 0;
       next;
     }
-    if ($L[$i] =~ /^[ ]{0,3}~{3,}/) {
-      $in_fence = 1; $fence_type = 'tilde';
+    if ($L[$i] =~ /^[ ]{0,3}(~{3,})/) {
+      $in_fence = 1; $fence_type = 'tilde'; $fence_len = length($1);
       $is_body[$i] = 0;
       next;
     }
   } else {
-    if ($fence_type eq 'bt' && $L[$i] =~ /^[ ]{0,3}${BT}{3,}/) {
+    if ($fence_type eq 'bt' && $L[$i] =~ /^[ ]{0,3}(${BT}{3,})\s*$/ && length($1) >= $fence_len) {
       $in_fence = 0; $fence_type = '';
       $is_body[$i] = 0;
       next;
     }
-    if ($fence_type eq 'tilde' && $L[$i] =~ /^[ ]{0,3}~{3,}/) {
+    if ($fence_type eq 'tilde' && $L[$i] =~ /^[ ]{0,3}(~{3,})\s*$/ && length($1) >= $fence_len) {
       $in_fence = 0; $fence_type = '';
       $is_body[$i] = 0;
       next;
@@ -252,6 +255,7 @@ if ($dash_count > 0 || $semi_count > 0) {
   my @mm_hits;
   my $fence = '';      # '' 表示不在 fence 內；否則是目前 fence 的語言（小寫）
   my $fence_ch = '';
+  my $fence_n = 0;
   my $mm_first = 0;
   for (my $i = 1; $i <= $n; $i++) {
     my $line = $L[$i];
@@ -259,13 +263,14 @@ if ($dash_count > 0 || $semi_count > 0) {
     if ($fence_ch eq '') {
       if ($line =~ /^[ ]{0,3}(${BT}{3,}|~{3,})\s*([^\s${BT}]*)/) {
         $fence_ch = substr($1, 0, 1);
+        $fence_n = length($1);
         $fence = lc($2);
         $mm_first = 1;
         $bad_names{$fence}++ if $fence =~ /^(?:diagram|dot|gv|viz)$/;
       }
       next;
     }
-    if ($line =~ /^[ ]{0,3}\Q$fence_ch\E{3,}\s*$/) { $fence_ch = ''; $fence = ''; next; }
+    if ($line =~ /^[ ]{0,3}(\Q$fence_ch\E{3,})\s*$/ && length($1) >= $fence_n) { $fence_ch = ''; $fence = ''; next; }
     next unless $mm_check && $fence eq 'mermaid';
     next if $line =~ /^\s*$/;
     if ($mm_first) {
@@ -302,21 +307,25 @@ if ($dash_count > 0 || $semi_count > 0) {
   $hl = 1500 unless defined $hl && $hl =~ /^\d+$/;
   my @code = (0) x ($n + 2);
   my $fch = '';
+  my $fn = 0;
   for (my $i = 1; $i <= $n; $i++) {
     if ($fm_end && $i <= $fm_end) { next; }
     if ($fch eq '') {
-      if ($L[$i] =~ /^[ ]{0,3}${BT}{3,}/) { $fch = $BT; $code[$i] = 1; }
-      elsif ($L[$i] =~ /^[ ]{0,3}~{3,}/) { $fch = '~'; $code[$i] = 1; }
+      if ($L[$i] =~ /^[ ]{0,3}(${BT}{3,})/) { $fch = $BT; $fn = length($1); $code[$i] = 1; }
+      elsif ($L[$i] =~ /^[ ]{0,3}(~{3,})/) { $fch = '~'; $fn = length($1); $code[$i] = 1; }
       next;
     }
     $code[$i] = 1;
-    if ($L[$i] =~ /^[ ]{0,3}\Q$fch\E{3,}\s*$/) { $fch = ''; }
+    if ($L[$i] =~ /^[ ]{0,3}(\Q$fch\E{3,})\s*$/ && length($1) >= $fn) { $fch = ''; }
   }
   my $sep = 0;
   if ($first_h2) {
     for (my $i = $first_h2 + 1; $i <= $n; $i++) {
       next if $code[$i];
-      if ($L[$i] =~ /^[ ]{0,3}(?:-{3,}|\*{3,})\s*$/) { $sep = $i; last; }
+      next unless $L[$i] =~ /^[ ]{0,3}(?:-{3,}|\*{3,})\s*$/;
+      my $k = $i + 1;
+      while ($k <= $n && $L[$k] =~ /^\s*$/) { $k++; }
+      if ($k <= $n && $L[$k] =~ /查證|不必讀|不用讀|完整記錄|原始記錄|給原廠/) { $sep = $i; last; }
     }
   }
   my $has_after = 0;
