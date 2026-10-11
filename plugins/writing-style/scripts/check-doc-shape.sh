@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 文件形狀檢查：掃描 .md 檔案，抓「模型讀了規則也守不住」的三類文件形狀問題。
+# 文件形狀檢查：掃描 .md 檔案，抓「模型讀了規則也守不住」的文件形狀問題。
 # 用法：check-doc-shape.sh <檔案...>
 # 定位：警示工具（人工判斷），可掛 PostToolUse hook 當確定性防線。
 # 只檢查 .md 檔；其他副檔名（或不存在的路徑）直接跳過，不輸出任何內容。
 #
-# 三項檢查：
+# 檢查項目（一至三預設啟用；四預設啟用；五需設環境變數才啟用）：
 #   1. 同步層長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
 #      第一個 "## " 之前的文字，超過門檻就提醒搬去小節。
 #   2. 符號串接——正文（排除 code fence ``` 與 ~~~／表格／frontmatter／單雙
@@ -13,6 +13,12 @@
 #      命中摘錄取觸發符號前後各 15 字，不是行首 40 字，確保看得到觸發符號。
 #   3. 破折號與分號——正文（同上遮罩規則）用 —— ── — ； ; 斷句過量，訊息
 #      是軟性提醒（確認是否過量／可能是合理的平列分句），不是強制改句號。
+#   4. 圖區塊名稱——code fence 語言標記是 diagram、dot、gv、viz 這類在
+#      CodiMD／HackMD 不一定會畫成圖的名稱，提醒改用 graphviz 或 mermaid。
+#   5. Mermaid 相容（預設不啟用）——只有設了 WRITING_STYLE_MERMAID_TARGET
+#      （例如 8.10）且主版號小於 9 才檢查 mermaid 區塊：沒加雙引號卻含全形
+#      標點（，（）：）的方框或箭頭標籤、--- 開頭的 frontmatter、@{ shape: … }。
+#      設為 9 以上或未設時完全不檢查，新版語法不當錯誤。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -45,7 +51,7 @@ for f in "$@"; do
   [[ -f "$f" ]] || continue
   checked_any=1
 
-  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" perl - "$f" <<'PERL_SCRIPT'
+  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" WRITING_STYLE_MERMAID_TARGET="${WRITING_STYLE_MERMAID_TARGET:-}" perl - "$f" <<'PERL_SCRIPT'
 use strict;
 use warnings;
 use utf8;
@@ -229,6 +235,60 @@ if ($dash_count > 0 || $semi_count > 0) {
   my $lines_str = join('、', map { "第${_}行" } @shown);
   $lines_str .= "、…另 ${extra} 處" if $extra > 0;
   push @issues, "破折號 ${dash_count} 處、分號 ${semi_count} 處：確認是否過量或用來串接獨立主張；平列分句可用分號。\n  出現於：${lines_str}";
+}
+
+# ---------- 檢查四：圖區塊名稱 ----------
+# CodiMD／HackMD 只認 graphviz、mermaid 等名稱；diagram、dot 之類會顯示成程式碼。
+# ---------- 檢查五：Mermaid 相容（僅 WRITING_STYLE_MERMAID_TARGET 主版號 < 9 時）----------
+{
+  my $target = $ENV{WRITING_STYLE_MERMAID_TARGET};
+  my $mm_check = (defined $target && $target =~ /^\s*(\d+)/ && $1 < 9) ? 1 : 0;
+  my %bad_names;
+  my @mm_hits;
+  my $fence = '';      # '' 表示不在 fence 內；否則是目前 fence 的語言（小寫）
+  my $fence_ch = '';
+  my $mm_first = 0;
+  for (my $i = 1; $i <= $n; $i++) {
+    my $line = $L[$i];
+    if ($fm_end && $i <= $fm_end) { next; }
+    if ($fence_ch eq '') {
+      if ($line =~ /^[ ]{0,3}(${BT}{3,}|~{3,})\s*([^\s${BT}]*)/) {
+        $fence_ch = substr($1, 0, 1);
+        $fence = lc($2);
+        $mm_first = 1;
+        $bad_names{$fence}++ if $fence =~ /^(?:diagram|dot|gv|viz)$/;
+      }
+      next;
+    }
+    if ($line =~ /^[ ]{0,3}\Q$fence_ch\E{3,}\s*$/) { $fence_ch = ''; $fence = ''; next; }
+    next unless $mm_check && $fence eq 'mermaid';
+    next if $line =~ /^\s*$/;
+    if ($mm_first) {
+      $mm_first = 0;
+      if ($line =~ /^\s*---\s*$/) { push @mm_hits, "  第 ${i} 行：以 --- 開頭的 frontmatter（舊版不支援）"; next; }
+    }
+    next if $line =~ /^\s*%%/;
+    if ($line =~ /\@\{\s*shape\s*:/) { push @mm_hits, "  第 ${i} 行：\@{ shape: … } 語法（新版才有）"; }
+    my $t = $line;
+    $t =~ s/\x22[^\x22]*\x22//g;  # 去雙引號字串；用 \x22 避免舊版 bash 解析 heredoc 時引號配對失敗
+    if ($t =~ /\[[^\]]*[，（）：][^\]]*\]|\x28[^\x29]*[，（）：][^\x29]*\x29|\{[^}]*[，（）：][^}]*\}|\|[^|]*[，（）：][^|]*\|/) {
+      my $ex = $line; $ex =~ s/^\s+//;
+      push @mm_hits, "  第 ${i} 行：標籤含全形標點卻沒加雙引號，改成 A[\"…\"] 或 -->|\"…\"|：" . substr($ex, 0, 30);
+    }
+  }
+  if (%bad_names) {
+    my $names = join('、', map { "${BT}${BT}${BT}$_ ($bad_names{$_} 個)" } sort keys %bad_names);
+    push @issues, "圖區塊名稱 ${names}：CodiMD／HackMD 不一定會畫成圖，讀者可能只看到程式碼。改用 ${BT}${BT}${BT}graphviz 或 ${BT}${BT}${BT}mermaid。";
+  }
+  if (@mm_hits) {
+    my $total = scalar(@mm_hits);
+    my @shown = @mm_hits;
+    my $extra = 0;
+    if ($total > 5) { @shown = @mm_hits[0..4]; $extra = $total - 5; }
+    my $msg = "Mermaid 圖有 ${total} 處在 Mermaid ${target} 可能畫不出來（WRITING_STYLE_MERMAID_TARGET）：\n" . join("\n", @shown);
+    $msg .= "\n  …另 ${extra} 處" if $extra > 0;
+    push @issues, $msg;
+  }
 }
 
 if (@issues) {

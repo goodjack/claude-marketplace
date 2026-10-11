@@ -1,5 +1,5 @@
 {
-  "description": "文件品質檢查：Edit/Write 後掃描目標檔案，一是中國用語，二是文件形狀（同步層長度、符號串接、破折號與分號），以 additionalContext 提醒模型修正（advisory 不阻擋，刻意引用情境由模型判斷）",
+  "description": "文件品質檢查：Edit/Write 後掃描目標檔案，一是中國用語，二是文件形狀（同步層長度、符號串接、破折號與分號、圖區塊名稱，另可選 Mermaid 舊版相容檢查），以 additionalContext 提醒模型修正（advisory 不阻擋，刻意引用情境由模型判斷）",
   "hooks": {
     "PostToolUse": [
       {
