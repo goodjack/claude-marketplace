@@ -4,7 +4,7 @@
 # 定位：警示工具（人工判斷），可掛 PostToolUse hook 當確定性防線。
 # 只檢查 .md 檔；其他副檔名（或不存在的路徑）直接跳過，不輸出任何內容。
 #
-# 檢查項目（一至四預設啟用；五、六需設環境變數才啟用）：
+# 檢查項目（一至四、七預設啟用；五、六需設環境變數才啟用）：
 #   1. 同步層長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
 #      第一個 "## " 之前的文字，超過門檻就提醒搬去小節。
 #   2. 符號串接——正文（排除 code fence ``` 與 ~~~／表格／frontmatter／單雙
@@ -24,6 +24,9 @@
 #      （SKILL.md 規定的寫法）。量這條線之前的去空白字元數（code fence 內不算），超過
 #      WRITING_STYLE_HUMAN_PART_LIMIT 就提醒。預設不啟用：只有設了這個環境變數
 #      （例如 1500，團隊想自訂上限時）才檢查，未設完全不輸出。沒有固定分界句不套這項預算。
+#   7. 段落長度——正文段落或條列項目（排除 frontmatter、code fence、表格、標題行；
+#      條列項目去掉項目符號後計算；多行段落合併成一段，空行分段）去空白後（連結只算文字、不算網址）超過
+#      WRITING_STYLE_PARAGRAPH_LIMIT（預設 120）就列出，最多 5 處加「…另 N 處」。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -40,6 +43,7 @@ set -uo pipefail
 
 SYNC_LAYER_LIMIT="${WRITING_STYLE_SYNC_LAYER_LIMIT:-400}"
 HUMAN_PART_LIMIT="${WRITING_STYLE_HUMAN_PART_LIMIT:-}"
+PARAGRAPH_LIMIT="${WRITING_STYLE_PARAGRAPH_LIMIT:-120}"
 
 # 沒有 perl 就什麼都查不了：立刻回報失敗，不要讓後面的邏輯悄悄跑出「無命中」
 # 的假結果（那會被讀成「通過」）。
@@ -57,7 +61,7 @@ for f in "$@"; do
   [[ -f "$f" ]] || continue
   checked_any=1
 
-  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" HUMAN_PART_LIMIT="$HUMAN_PART_LIMIT" WRITING_STYLE_MERMAID_TARGET="${WRITING_STYLE_MERMAID_TARGET:-}" perl - "$f" <<'PERL_SCRIPT'
+  result="$(SYNC_LAYER_LIMIT="$SYNC_LAYER_LIMIT" HUMAN_PART_LIMIT="$HUMAN_PART_LIMIT" PARAGRAPH_LIMIT="$PARAGRAPH_LIMIT" WRITING_STYLE_MERMAID_TARGET="${WRITING_STYLE_MERMAID_TARGET:-}" perl - "$f" <<'PERL_SCRIPT'
 use strict;
 use warnings;
 use utf8;
@@ -346,6 +350,52 @@ if ($dash_count > 0 || $semi_count > 0) {
     if ($cnt > $hl) {
       push @issues, "給人讀的部分 ${cnt} 字，超過約一頁（${hl}）：把證據細節移到查證用的部分，主線每個結論只留一句證據摘要與它的限制；會改變判斷的限制不能刪。";
     }
+  }
+}
+
+# ---------- 檢查七：段落長度 ----------
+{
+  my $pl = $ENV{PARAGRAPH_LIMIT};
+  $pl = 120 unless defined $pl && $pl =~ /^\d+$/ && $pl > 0;
+  my @long;
+  my $cur = '';
+  my $cur_start = 0;
+  my $flush = sub {
+    if ($cur_start) {
+      my $t = $cur;
+      $t =~ s/\]\x28[^\x29]*\x29/]/g;
+      $t =~ s/<https?:[^>]*>//g;
+      $t =~ s{https?://[^\s\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}（）「」『』、，。；：！？]+}{}g;
+      $t =~ s/\s+//g;
+      my $len = length($t);
+      push @long, [$cur_start, $len] if $len > $pl;
+    }
+    $cur = '';
+    $cur_start = 0;
+  };
+  for (my $i = 1; $i <= $n; $i++) {
+    my $line = $L[$i];
+    if (!$is_body[$i] || $line =~ /^\s*$/ || $line =~ /^\s{0,3}[#]{1,6}(?:\s|$)/ || $line =~ /^[ ]{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/) {
+      $flush->();
+      next;
+    }
+    $line =~ s/^\s*>+\s*//;
+    if ($line =~ /^\s*(?:[-*+]|\d+[.\x29])\s+/) {
+      $flush->();
+      $line =~ s/^\s*(?:[-*+]|\d+[.\x29])\s+//;
+    }
+    $cur_start = $i unless $cur_start;
+    $cur .= $line;
+  }
+  $flush->();
+  if (@long) {
+    my $total = scalar(@long);
+    my @shown = @long;
+    my $extra = 0;
+    if ($total > 5) { @shown = @long[0..4]; $extra = $total - 5; }
+    my $lines_str = join('、', map { "第$_->[0]行（$_->[1] 字）" } @shown);
+    $lines_str .= "、…另 ${extra} 處" if $extra > 0;
+    push @issues, "段落超過約畫面三行（門檻 ${pl} 字）：拆成兩段或把細節移到後面，不要切斷因果；指令與路徑放程式碼區塊。\n  出現於：${lines_str}";
   }
 }
 

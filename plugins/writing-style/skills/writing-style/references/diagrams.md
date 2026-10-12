@@ -30,7 +30,11 @@
 
 ## CodiMD
 
-**內建版本**：2.5.x 內建 Mermaid 8.10.2，2.6.x 改為 Mermaid 11.5.0，兩版的 viz.js（Graphviz 的瀏覽器版）都是 2.1.2。來源是各版的 package.json：[2.5.4](https://raw.githubusercontent.com/hackmdio/codimd/2.5.4/package.json)、[master](https://raw.githubusercontent.com/hackmdio/codimd/master/package.json)。不確定站台是哪一版時，Mermaid 用 8.10 相容寫法。
+**內建版本**：2.5.x 內建 Mermaid 8.10.2，2.6.x 改為 Mermaid 11.5.0，兩版的 viz.js（Graphviz 的瀏覽器版）都是 2.1.2。
+
+來源是各版的 package.json：[2.5.4](https://raw.githubusercontent.com/hackmdio/codimd/2.5.4/package.json)、[master](https://raw.githubusercontent.com/hackmdio/codimd/master/package.json)。
+
+不確定站台是哪一版時，Mermaid 用 8.10 相容寫法。
 
 **區塊名稱**以 [CodiMD 支援語法說明](https://hackmd.io/@codimd/extra-supported-syntax) 為準，包括 `graphviz`、`mermaid`、`sequence`、`flow`、`abc`、`vega`、`plantuml`。
 
@@ -45,7 +49,9 @@
 - 能畫圖內標題與圖例，Mermaid 8.10 兩者都沒有。
 - 能指定同一層方框的左右順序，版面最接近手繪。
 
-**實測狀態**：viz.js 2.1.2 在 Linux 的 Chromium 畫中文方框沒有超框。macOS 上貼進一個 CodiMD 站台初步看過也沒有超框，但版本未確認，可追溯的紀錄待補（見 `design-decisions.md`「平台與渲染細節」）。換字型或系統時要再看一次。
+**實測狀態**：viz.js 2.1.2 在 Linux 的 Chromium 畫中文方框沒有超框。
+
+macOS 上貼進一個 CodiMD 站台初步看過也沒有超框，但版本未確認，可追溯的紀錄待補（見 `design-decisions.md`「平台與渲染細節」）。換字型或系統時要再看一次。
 
 ## HackMD.io
 
