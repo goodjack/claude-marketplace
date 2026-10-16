@@ -12,7 +12,7 @@
 4. **4.0.0 新增規則的正當性分類**：每條新規則屬於來源直接要求、移用推導或待驗證的設計選擇。
 5. **外部依據**：可依新證據修改。
 6. **已否決的主張**：不得因為在寫作圈流行就加回。
-7. **平台與渲染細節**：摺疊、畫圖平台的相容性與實測紀錄。
+7. **平台與渲染細節**：收合、畫圖平台的相容性與實測紀錄。
 8. **句子層細則的證據身分**：`examples.md`「句子的寫法」那六條的查證結果。
 
 同目錄另有 `examples.md`（語氣變體、正反例全集、AI 常犯問題的判斷細節）、`doc-types.md`（各類文件的骨架）、`diagrams.md`（畫圖的平台與語法）與 `taiwan-terms.md`（中國用語對照表）。
@@ -99,9 +99,10 @@
 ### WS-D06：可見主線優先服務當前任務
 
 - **狀態**：有效。
-- **正當性來源**：實際使用回饋與本 skill 的設計需求。不是從 GitHub 的 `<details>` 文件推導——那份文件只支撐摺疊怎麼用，撐不起四類分流、處理順序與三項否決條件。
+- **正當性來源**：實際使用回饋與本 skill 的設計需求。不是從 GitHub 的 `<details>` 文件推導——那份文件只支撐收合怎麼用，撐不起四類分流、處理順序與收合的條件與禁令。
 - **不變條件**：可見主線優先服務讀者的當前任務；背景、例外與參考資料不得擋在必要判斷與最短成功路徑之前。
-- **可調部分**：四類分流的名稱與邊界、摺疊的條件、最長區塊抽查的數量。
+- **可調部分**：四類分流的名稱與邊界、收合的條件、最長區塊抽查的數量。
+- **第八輪的調整（只動可調部分）**：收合從「三個條件同時成立才可收合」改成查證細節與決策背景在支援收合的平台預設收合，禁令保留：會改變判斷或行動的內容不收合。不變條件照舊，背景與參考資料仍不擋在必要判斷之前，收合是讓它們不擋路的呈現方式。
 - **理由**：實跑一份導入教學時，局部規則全數合格（每項自我完整、每段一個推論單位、術語都有解釋），讀者仍回饋「字很多很難讀」。原因是內部機制與詞彙表擋在第一次成功之前——第一次實際操作到第 147 行才出現。規範原本只檢查每一段寫得好不好，沒有檢查這段現在該不該出現。
 - **外部依據的關係**：雙模型各自跑過 consensus 查證，結論一致——底層原則有支持（Diátaxis 的 tutorial 要先給可見成果並把 explanation 移出、DITA 的 task／concept／reference 分型、GOV.UK 要求內容回應實際使用者需求、W3C 要求非主要目的的內容與主線分離），但**四類分流本身沒有任何框架採用相同切法**，它混合了「內容用途」與「在當前流程的位置」兩條軸線。所以這是有理據的本地決策，不能宣稱它是 Diátaxis 或 DITA 的分類法。
 - **邊界**：「最短成功路徑」不等於無條件追求步驟最少。真正必要的 prerequisite 仍應放在操作之前（DITA、Write the Docs 立場），Diátaxis 的 tutorial 也是學習經驗而非最快完成任務。
@@ -229,7 +230,7 @@
 
 ## 4.0.0 新增規則的正當性分類
 
-4.0.0 分三輪：第一輪依重構方案改結構、加圖；第二輪把一份外部 skill 當成現象，盤點本 skill 沒考慮完整的領域（需求不明、修改既有文件、文件類型、對話回覆、AI 雜訊、引用、團隊規範），逐項查共識後整合進既有結構，不是逐條往後補；第三輪依新舊版盲評的結果修正。
+4.0.0 分三輪（後續第六、七、八輪見下）：第一輪依重構方案改結構、加圖；第二輪把一份外部 skill 當成現象，盤點本 skill 沒考慮完整的領域（需求不明、修改既有文件、文件類型、對話回覆、AI 雜訊、引用、團隊規範），逐項查共識後整合進既有結構，不是逐條往後補；第三輪依新舊版盲評的結果修正。
 
 **第三輪的依據與證據強度**：3.1.0 與 4.0.0 各依同一批事實清單寫出決策、操作與五個壓力案例，交給另一家模型隱藏版本盲評（2026-10-11）。結果平手：好讀 4.0.0 贏 5 組、3.1.0 贏 4 組，準確各有輸贏。
 
@@ -289,6 +290,29 @@
 | 每節能單獨讀，不寫「上面、下面、上一節」 | 社群主流 | AI 助理的回答原則（Codex、OpenAI Model Spec、Anthropic）可搬到文件的部分。「一行片段取代完整句子」只適合對話，不搬 |
 
 與已否決主張的關係：「任何固定的段落句數上限」否決的是句數硬門檻；第七輪的 120 字是畫面行數的軟提醒，不誘導砍限定語，因果放不下時寧可多一行。「段落字元門檻未校準前不採用」由維護者明確回饋重開（重開條件第一條），改為 120 字、只提醒不阻擋，仍待實際文件校準誤報率。
+
+**第八輪：實際使用盤點（2026-10-16）**：維護者 10 月 13 日到 16 日用新版寫實際工作文件（技術說明、工單、首頁、給其他團隊的分享版），盤點產出與維護者當場的指正後修改，維護者裁決必修與建議一起改。依據全是讀者回饋（WS-D04），除了收合的禁令沿用既有外部依據，沒有另查外部共識。限制：單一讀者、四天的使用紀錄，不是普查。
+
+| 規則 | 正當性分類 | 依據 |
+| --- | --- | --- |
+| 日常說法指讀者平常講的詞，不是字面中譯、不自創譯名，產品與系統用團隊慣用名稱 | 讀者回饋（WS-D04） | 盤點：token 譯成「權杖」、middleware 譯成「中介程式」，自創「產品標頭」「放行清單」，產品名跟團隊週報用的名稱對不上。術語階梯第一階原本只寫「日常說法」，被執行成字面中譯。補上這條也是 WS-D03「不硬翻成生造中文」在術語階梯上的落實 |
+| 給人讀的部分不出現讀者手上沒有的文件、內部編號、工具欄位與作業狀態詞，列入驗收第 5 項 | 讀者回饋，延伸 WS-M05（代號首次出現附意義）與 WS-M08（以共同場合出現過的詞為界） | 盤點：引用讀者沒有的文件、作者自編的分類代號、掃描工具的欄位名、「查不到」「未分級」這類作業狀態詞。WS-M05 只要求定義，這類東西就算定義了讀者也用不上，所以改寫成它代表的事 |
+| 查證細節與決策背景在支援收合的平台預設收合，會改變判斷的不收 | 讀者回饋，禁令沿用外部依據（NN/g、GOV.UK，見外部依據表） | 維護者兩次要求細節預設收合，原話「以後也請這樣寫」。取代原本「三個條件同時成立才可收合」，屬 WS-D06 可調部分。禁令補上「緊貼主張的限制」與「讀者要先懂才能判斷的經過摘要」，守 WS-M09 與 `doc-types.md`「決策與設計」 |
+| 工單骨架（標題功能加影響；影響、問題出在哪、修法、怎樣算完成）與待裁決骨架（建議、不決定會怎樣、選項、決策人，細節收合）；觸發條件加入 Jira 單、GitHub Issue 與 PR 說明 | 讀者回饋，本地決策 | 維護者對待裁決單的回饋：「可以，以後也請這樣寫」。四段段名是本地決策，查無外部共識。PR 說明沿用同一套是維護者派工時加入，沒有實際使用紀錄 |
+| 總覽或首頁一頁看完，逐項細節移到子頁 | 讀者回饋，與既有「篇幅暴增就拆檔」同向 | 一份首頁 738 行時一直被說太長，改成 48 行（事實在前、每項一行加工單連結）後不再被抱怨 |
+| 格子要寫句子時改成一項一塊的條列 | 讀者回饋 | 「GitHub 上表格很難讀都擠成一坨」。原本是外部依據表的本地加註（儲存格過長改小標加條列），這輪寫進 `SKILL.md` 形式表 |
+| 要對照的項目（Endpoint、路徑、行號）用固定格式子項目一行一個，不用頓號串在句中 | 讀者回饋 | 「不要用頓號，直接段落符號不好嗎」 |
+
+讀者滿意、要求照樣寫的四種形式收成 `examples.md`「工單、首頁與分享版的範例」，情境全部改寫成虛構：工單四段、待裁決單（細節收合）、一頁看完的首頁、每項固定子項目的分享版。
+
+為了把 `SKILL.md` 守在 4,500 字元內，這輪移出或合併的內容（規則本身都還在，只是不在本文重講）：
+
+- 操作步驟的細則（解釋放步驟外、選擇性動作「沒有的話：」、必要操作寫進本文、結尾導引）只留在 `doc-types.md`「操作」，本文留「照做不用判斷、前提集中在開始前」與路由。這幾條是第七輪的讀者回饋，移出後靠 `doc-types.md` 承載。
+- 平台不明預設用文字只留在 `diagrams.md`。圖的文字替代不放進「不必讀」那句只留在 `diagrams.md` 與 `examples.md`「圖的寫作面」。
+- 「其他地方只留一句摘要」由衝突裁決表「自我完整與不重複」那列承擔，第 2 節不重講。
+- 「確定要轉寄時寫一行附哪幾節」只留在 `examples.md`「內部版轉分享版」。狀態型文件標日期與狀態只留在 `doc-types.md`「狀態更新」與 `examples.md`「引用與連結」。
+
+觀察到但只出現一次、先不改的兩件事：猜錯讀者要做的事（讀者要的是先修哪些，產出寫成怎麼回覆對方），以及「複述待驗」每次附三題但讀者從未回應，考慮改成只在文件標註。重複出現再依重開條件處理。
 
 外部依據表標「官方定論」只代表來源明文要求，不代表已證明適用所有工作文件。新規則依來源關係分三類：
 
@@ -350,7 +374,7 @@
 
 | 規則 | 來源 | 適用範圍與注意事項 |
 | --- | --- | --- |
-| 每項 3 個以上屬性要對照就用表格 | [Google Style Guide: Tables](https://developers.google.com/style/tables) | 判準看屬性數不看項目數。本 skill 另加輔具、窄螢幕、儲存格過長三個例外，屬本地加註，不是原始來源的立場 |
+| 每項 3 個以上屬性要對照就用表格 | [Google Style Guide: Tables](https://developers.google.com/style/tables) | 判準看屬性數不看項目數。本 skill 另加輔具、窄螢幕、格子要寫句子三個例外，改成一項一塊的條列，屬本地加註，不是原始來源的立場（第八輪讀者回饋寫進 `SKILL.md` 形式表） |
 | 清單 2–7 項 | [Microsoft Style Guide: Lists](https://learn.microsoft.com/en-us/style-guide/scannable-content/lists) | 官方寫的是建議值。其常被連結的 Miller 7±2 在認知科學界已被視為過度簡化，不要拿來當科學依據 |
 | 只有 1~2 列不要做表格 | [Australian Style Manual: Tables](https://www.stylemanual.gov.au/structuring-content/tables) | 「表頭比內容重」是本地補充的理由，原文沒有 |
 | 名詞連用三個以上就難讀 | [digital.gov: Plain language — writing style](https://digital.gov/guides/plain-language/writing/style)（plainlanguage.gov 原頁已於搬遷後併入，舊網址 301） | 門檻確為 3，原文措辭更強（beyond three, the string becomes unbearable） |
@@ -358,8 +382,8 @@
 | 術語處理階梯（能換就換 → 保留＋首次說明 → 大型文件才建 glossary） | [Google: Jargon](https://developers.google.com/style/jargon)、[Microsoft: Use technical terms carefully](https://learn.microsoft.com/en-us/style-guide/word-choice/use-technical-terms-carefully)、[GOV.UK Technical A–Z](https://guidance.publishing.service.gov.uk/writing-to-gov-uk-standards/style-guides/technical-a-to-z/) | 前兩階有外部支持：各家都反對把必要術語砍光，Google 支持保留讀者會拿去搜尋的術語（原文是「readers search for those terms」與 SEO，非逐字 searchability）。**第三階「大型文件才建 glossary」是本地推導**：Google 與 Microsoft 該頁均未提 glossary（2026-08-02 查證），不能列為多家共同規則；規則保留，該階證據身分為本地 |
 | 事件報告聚焦系統不聚焦個人，action item 要有 owner | [Google SRE Book: Postmortem Culture](https://sre.google/sre-book/postmortem-culture/) | 社群有「blame-aware」的修正意見，認為純 blameless 不符合人的實際反應 |
 | 標點規範 | 教育部《重訂標點符號手冊》修訂版（2009） | 台灣現行的官方標點規範。不採 GB/T 15834——兩岸的分號定義、引號、標點位置有落差 |
-| 摺疊區塊的語法與基本用法 | [GitHub Docs: Organizing information with collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections) | 只支撐「怎麼用」。本 skill 的四類分流、處理順序與三項否決條件屬 WS-D06，不是從這份文件推導 |
-| 重要資訊不得藏在摺疊裡 | [NN/g: Accordions on Desktop](https://www.nngroup.com/articles/accordions-on-desktop/)、[GOV.UK Details](https://design-system.service.gov.uk/components/details/)、[GOV.UK Accordion](https://design-system.service.gov.uk/components/accordion/) | NN/g：「Avoid hiding any crucial information within the collapsed panels」。GOV.UK 更嚴：details 只適合部分使用者需要的資訊；所有人都需要的內容應該先試簡化或拆頁，不是收合 |
+| 收合區塊的語法與基本用法 | [GitHub Docs: Organizing information with collapsed sections](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections) | 只支撐「怎麼用」。本 skill 的四類分流、處理順序與收合的條件與禁令屬 WS-D06，不是從這份文件推導 |
+| 重要資訊不得藏在收合區塊裡 | [NN/g: Accordions on Desktop](https://www.nngroup.com/articles/accordions-on-desktop/)、[GOV.UK Details](https://design-system.service.gov.uk/components/details/)、[GOV.UK Accordion](https://design-system.service.gov.uk/components/accordion/) | NN/g：「Avoid hiding any crucial information within the collapsed panels」。GOV.UK 更嚴：details 只適合部分使用者需要的資訊；所有人都需要的內容應該先試簡化或拆頁，不是收合 |
 | 教學先讓讀者動手、背景不擋路 | [Diátaxis: Tutorials](https://diataxis.fr/tutorials/) | 主要支持是 Diátaxis。Google Procedures 只規範步驟寫法，且要求讀者能事先取得準備任務所需的資訊——歸在「必要 prerequisite 放操作前」那一側，不能並列為本規則的共同支持（2026-08-02 更正）。**不是無條件追求步驟最少**。[DITA task elements](https://docs.oasis-open.org/dita/v1.1/OS/langspec/common/task2.html) 與 [Write the Docs](https://www.writethedocs.org/guide/writing/docs-principles/) 支持把真正必要的 prerequisite 放在操作之前。查過 Google、Microsoft、DITA、Diátaxis、W3C，**沒有**任何一家主張完整詞彙表該放教學前面 |
 | 一個步驟對應一個讀者決定 | [Google: Procedures](https://developers.google.com/style/procedures)、[Microsoft: Step-by-step instructions](https://learn.microsoft.com/en-us/style-guide/procedures-instructions/writing-step-by-step-instructions) | 兩家都允許把同一操作位置上的小動作合併，也允許步驟附帶必要結果或理由。**「每個項目只能含單一資訊」會過度切碎**，不是共識 |
 | 連結節制 | NN/g「A Link is a Promise」、[Google: Cross-references](https://developers.google.com/style/cross-references) | Google 現行立場是把連結放在最有用的位置；長頁面、多入口時可以重複。正文的「預設只連首次」已寫入這個例外 |
@@ -431,15 +455,16 @@
 
 ## 平台與渲染細節
 
-### 摺疊
+### 收合
 
-`<details>/<summary>` 摺疊的相容性（會變動的支援資料指向來源，本檔不寫死版本號）：
+`<details>/<summary>` 收合的相容性（會變動的支援資料指向來源，本檔不寫死版本號）：
 
 - **元素本身的支援不是問題**：支援率與版本現況見 [caniuse](https://caniuse.com/details)（比例會變動，本檔不寫死）。CodiMD／HackMD、GitHub 與多數 IDE 預覽也都支援（HackMD／CodiMD × Chrome／Firefox 有使用者 2026-08-02 實測確認）。
 - **Notion**：貼上或匯入 Markdown 時會移除標籤，內容可能整段消失，不會變成 toggle。其 API 另有支援 details/summary，但貼上、匯入、API 是三條不同通路，不能互相外推。確定要貼到 Notion 的文件先展開，改用「存查材料後置＋文末附錄」。
-- **頁內搜尋找得到（這是修正過的認知）**：[HTML Standard](https://html.spec.whatwg.org/multipage/interaction.html#interaction-with-details-and-hidden=until-found) 把「頁內搜尋能找到關閉的 `<details>` 並自動展開」列為規範行為；各瀏覽器完成實作的時間不一（caniuse 的 details 條目未涵蓋此行為），目標環境有疑慮就實測。**「摺疊內容搜不到」對現代瀏覽器的原生 details 已不成立，不能再拿來當摺疊的否決條件。** Safari 曾有「展開但沒捲到結果」的問題，體驗仍可能不完整。
+- **頁內搜尋找得到（這是修正過的認知）**：[HTML Standard](https://html.spec.whatwg.org/multipage/interaction.html#interaction-with-details-and-hidden=until-found) 把「頁內搜尋能找到關閉的 `<details>` 並自動展開」列為規範行為；各瀏覽器完成實作的時間不一（caniuse 的 details 條目未涵蓋此行為），目標環境有疑慮就實測。**「收合內容搜不到」對現代瀏覽器的原生 details 已不成立，不能再拿來當收合的否決條件。** Safari 曾有「展開但沒捲到結果」的問題，體驗仍可能不完整。
 - **`hidden="until-found"` 是另一套機制**，各家支援狀態的公開資料曾互相矛盾；現況查 [caniuse](https://caniuse.com/mdn-html_global_attributes_hidden_until-found) 或 MDN，目標環境有疑慮就實測。
 - **列印**：展開與否沒有一致保證。
+- **Jira**：用它自己的展開（expand）元素收合。貼進 Markdown 的 `<details>` 在 Jira 會不會變成收合，未實測（2026-10-16 記）。
 
 ### 畫圖平台
 

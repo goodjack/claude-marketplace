@@ -5,7 +5,7 @@
 # 只檢查 .md 檔；其他副檔名（或不存在的路徑）直接跳過，不輸出任何內容。
 #
 # 檢查項目（一至四、七預設啟用；五、六需設環境變數才啟用）：
-#   1. 同步層長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
+#   1. 開頭長度——去掉 YAML frontmatter 與第一行 H1 後，從第一個非空行到
 #      第一個 "## " 之前的文字，超過門檻就提醒搬去小節。
 #   2. 符號串接——正文（排除 code fence ``` 與 ~~~／表格／frontmatter／單雙
 #      反引號 inline code／URL）用 → ＋ ＝ ／ & 串接語意關係，而非寫成完整
@@ -24,9 +24,11 @@
 #      （SKILL.md 規定的寫法）。量這條線之前的去空白字元數（code fence 內不算），超過
 #      WRITING_STYLE_HUMAN_PART_LIMIT 就提醒。預設不啟用：只有設了這個環境變數
 #      （例如 1500，團隊想自訂上限時）才檢查，未設完全不輸出。沒有固定分界句不套這項預算。
-#   7. 段落長度——正文段落或條列項目（排除 frontmatter、code fence、表格、標題行；
-#      條列項目去掉項目符號後計算；多行段落合併成一段，空行分段）去空白後（連結只算文字、不算網址）超過
-#      WRITING_STYLE_PARAGRAPH_LIMIT（預設 120）就列出，最多 5 處加「…另 N 處」。
+#   7. 段落長度——只檢查正文段落（排除 frontmatter、code fence、表格、標題行；
+#      多行段落合併成一段，空行分段）。條列項目不檢查，連同它的接續行與項目內段落
+#      一併略過（條列本來就是逐項掃讀）。去空白後（連結只算文字、不算網址；行內程式碼
+#      含反引號整段不計）超過 WRITING_STYLE_PARAGRAPH_LIMIT（預設 120）就列出，
+#      最多 5 處加「…另 N 處」。
 #
 # 檢查二、三的命中例子各最多列 5 個，超過的以「…另 N 處」收尾；總數（處數／
 # 行數）不受此上限影響，照樣完整回報。檢查一本來就只有一則，不設上限。
@@ -118,7 +120,7 @@ for (my $i = $body_start; $i <= $n; $i++) {
   if ($L[$i] =~ /^## /) { $first_h2 = $i; last; }
 }
 
-# 同步層起點：H1 之後的第一個非空行；沒有 H1 就是 frontmatter 後第一個非空行
+# 開頭起點：H1 之後的第一個非空行；沒有 H1 就是 frontmatter 後第一個非空行
 my $scan_from = $h1_line ? $h1_line + 1 : $body_start;
 my $sync_start = $scan_from;
 while ($sync_start <= $n && $L[$sync_start] =~ /^\s*$/) { $sync_start++; }
@@ -140,11 +142,11 @@ my @issues;
 
 if ($first_h2 == 0) {
   if ($sync_len > $LIMIT) {
-    push @issues, "同步層 ${sync_len} 字元，超過 ${LIMIT}：沒有小節分隔，整份都是同步層。";
+    push @issues, "開頭 ${sync_len} 字元，超過 ${LIMIT}：沒有小節分隔，整份都算在開頭。";
   }
 } else {
   if ($sync_len > $LIMIT) {
-    push @issues, "同步層（第一個 ## 之前）${sync_len} 字元，超過 ${LIMIT}：同步層只放結論、已決定的事、要讀者做的事、哪裡可以停；其餘後置到 ## 小節，不是刪掉。";
+    push @issues, "開頭（第一個 ## 之前）${sync_len} 字元，超過 ${LIMIT}：開頭只放結論、已決定的事、要讀者做的事、哪裡可以停；其餘後置到 ## 小節，不是刪掉。";
   }
 }
 
@@ -353,7 +355,7 @@ if ($dash_count > 0 || $semi_count > 0) {
   }
 }
 
-# ---------- 檢查七：段落長度 ----------
+# ---------- 檢查七：段落長度（只檢查段落，條列項目不檢查）----------
 {
   my $pl = $ENV{PARAGRAPH_LIMIT};
   $pl = 120 unless defined $pl && $pl =~ /^\d+$/ && $pl > 0;
@@ -363,6 +365,8 @@ if ($dash_count > 0 || $semi_count > 0) {
   my $flush = sub {
     if ($cur_start) {
       my $t = $cur;
+      $t =~ s/\Q$BT2\E.*?\Q$BT2\E//g;        # 行內程式碼整段不計（先雙後單，同 mask_line）
+      $t =~ s/\Q$BT\E[^$BT]*\Q$BT\E//g;
       $t =~ s/\]\x28[^\x29]*\x29/]/g;
       $t =~ s/<https?:[^>]*>//g;
       $t =~ s{https?://[^\s\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}（）「」『』、，。；：！？]+}{}g;
@@ -373,17 +377,47 @@ if ($dash_count > 0 || $semi_count > 0) {
     $cur = '';
     $cur_start = 0;
   };
+  # 條列項目的判定：項目符號行開始一個項目；之後沒有空行隔開的行是它的接續行，
+  # 空行之後縮排達到項目內容起點的行是項目內的後續段落，兩者都不算一般段落。
+  my $in_item = 0;
+  my $list_min = 0;      # 目前這串條列的內容縮排下限（取各項目的最小值）
+  my $prev_blank = 0;
   for (my $i = 1; $i <= $n; $i++) {
     my $line = $L[$i];
-    if (!$is_body[$i] || $line =~ /^\s*$/ || $line =~ /^\s{0,3}[#]{1,6}(?:\s|$)/ || $line =~ /^[ ]{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/) {
+    if ($line =~ /^\s*$/) {
       $flush->();
+      $prev_blank = 1;
+      next;
+    }
+    if (!$is_body[$i] || $line =~ /^\s{0,3}[#]{1,6}(?:\s|$)/ || $line =~ /^[ ]{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/) {
+      $flush->();
+      # 項目內縮排的 code fence 或表格不中斷這個項目；標題、分隔線與頂格的非正文行才中斷
+      my $is_block = $line =~ /^\s{0,3}[#]{1,6}(?:\s|$)/ || $line =~ /^[ ]{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/;
+      (my $ws = $line) =~ s/^(\s*).*$/$1/;
+      $ws =~ s/\t/    /g;
+      $in_item = 0 if $is_block || length($ws) < $list_min;
+      $prev_blank = 0;
       next;
     }
     $line =~ s/^\s*>+\s*//;
-    if ($line =~ /^\s*(?:[-*+]|\d+[.\x29])\s+/) {
+    if ($line =~ /^(\s*(?:[-*+]|\d+[.\x29])\s+)/) {
+      my $prefix_len = length($1);
       $flush->();
-      $line =~ s/^\s*(?:[-*+]|\d+[.\x29])\s+//;
+      $list_min = (!$in_item || $prefix_len < $list_min) ? $prefix_len : $list_min;
+      $in_item = 1;
+      $prev_blank = 0;
+      next;
     }
+    if ($in_item) {
+      (my $ws = $line) =~ s/^(\s*).*$/$1/;
+      $ws =~ s/\t/    /g;
+      if (!$prev_blank || length($ws) >= $list_min) {
+        $prev_blank = 0;
+        next;
+      }
+      $in_item = 0;
+    }
+    $prev_blank = 0;
     $cur_start = $i unless $cur_start;
     $cur .= $line;
   }
