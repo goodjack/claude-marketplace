@@ -9,10 +9,15 @@ f="$(jq -r '.tool_input.file_path // .tool_response.filePath // empty' <<<"$payl
 [[ -z "$f" || ! -f "$f" ]] && exit 0
 
 # 詞表類檔案整份都是禁用詞對照，跳過避免必然誤報
-# （CLAUDE.md 常見引用用語規則，整檔誤報率高，一併跳過）
-case "$f" in
-  */CLAUDE.md|*check-tw-terms*|*taiwan-terms*) exit 0 ;;
+# （CLAUDE.md 常見引用用語規則，整檔誤報率高，一併跳過）。
+# 給 AI 讀的檔也跳過：路徑含 /memory/、檔名為 AGENTS.md／CLAUDE.md／MEMORY.md／
+# PROJECT-STATE.md、檔名含 handoff（不分大小寫）。這些是 AI 的工作脈絡，常刻意引用用語。
+# 只影響 hook；直接跑 check-tw-terms.sh 照常檢查任何檔。
+case "/$f" in
+  */memory/*|*/CLAUDE.md|*/AGENTS.md|*/MEMORY.md|*/PROJECT-STATE.md|*check-tw-terms*|*taiwan-terms*) exit 0 ;;
 esac
+base_lc="$(printf '%s' "${f##*/}" | tr '[:upper:]' '[:lower:]')"
+[[ "$base_lc" == *handoff* ]] && exit 0
 
 result="$("$(dirname "$0")/check-tw-terms.sh" "$f" 2>/dev/null)" || true
 
