@@ -1,14 +1,16 @@
 ---
 name: aws-investigate
-description: 調查 AWS 線上環境的 error、效能劣化、基礎設施異常。涵蓋 CloudWatch Logs（Insights + FilterLogEvents）、ALB Logs（Athena）、CloudWatch Metrics（Redis/ECS/ALB/RDS）、ECS 容器診斷、CodePipeline 部署比對。支援定期掃描（彙總+篩選+報告）與特定問題調查（trace 追蹤+root cause 分析）兩種入口。
-when_to_use: 當使用者提到「查 log」「看 error」「查線上問題」「每週 error 統整」「這個 trace 發生什麼事」「Redis 暴增」「container crash」「ALB 502」「效能變慢」「部署後異常」「寫事件報告」「incident report」時觸發。
-argument-hint: "[trace-id, error keyword, or 'scan']"
+description: 調查 AWS 線上環境的 error、效能劣化、基礎設施異常，以及資安查案（某個 IP 或某把 access key 有沒有存取我們的 AWS、打到哪、拿走什麼）。涵蓋 CloudWatch Logs（Insights + FilterLogEvents）、ALB／WAF／CloudFront Logs（Athena 與 S3）、CloudTrail、GuardDuty、CloudWatch Metrics（Redis/ECS/ALB/RDS）、ECS 容器診斷、CodePipeline 部署比對。支援定期掃描、特定問題調查、資安查案三種入口。
+when_to_use: 當使用者提到「查 IP」「這個 IP 有沒有打我們」「可疑存取」「金鑰被誰用」「有沒有被入侵」「WAF」「CloudFront log」「CloudTrail」「GuardDuty」「查 log」「看 error」「查線上問題」「每週 error 統整」「這個 trace 發生什麼事」「Redis 暴增」「container crash」「ALB 502」「效能變慢」「部署後異常」「寫事件報告」「incident report」時觸發。
+argument-hint: "[trace-id, error keyword, IP, access key ID, or 'scan']"
 allowed-tools:
   - Bash(aws *)
   - Bash(python3 *)
   - Bash(nslookup *)
   - Bash(curl *)
   - Bash(gunzip *)
+  - Bash(gzip *)
+  - Bash(uv run *)
   - Bash(tail *)
   - Bash(git log *)
   - Bash(git diff *)
@@ -123,6 +125,8 @@ fields @timestamp, @message
 
 **存在** → 讀取並記住內容。此檔案是 `config.local.yaml` 的補充——config 放結構化設定，這裡放 config 裝不下的自由格式知識：log schema、trace ID 格式、code path 注意事項、已知雜訊 pattern、歷史案例、report convention、issue tracker 慣例、已驗證陷阱等。在後續所有查詢和判讀中都需要參照。
 
+`context.local.md` 若指向組織的查案地圖（另一個檔案或 repo，記帳號、Athena 表、log bucket、哪些 log 有記真實來源 IP），本次調查用得到時先讀它再動手；資安查案一律先讀。
+
 **不存在** → 提議掃描 codebase 建立基礎版。告知使用者：「我可以掃描 codebase 建立 `context.local.md` 的基礎版，記錄 log 格式、已知雜訊等知識，幫助後續調查更精準。要建立嗎？」使用者拒絕則跳過，調查後維護階段會根據調查發現自動建立。
 
 同意後，用 Grep/Read 掃描以下項目：
@@ -143,7 +147,7 @@ fields @timestamp, @message
 
 ---
 
-**Config 不存在時** → 進入首次設定流程：
+**Config 不存在時** → 進入首次設定流程（資安查案不需要先完成這段，可直接進入入口 C）：
 
 1. 說明：「這個 skill 需要一些 AWS 環境設定才能查詢。我會先偵測環境，再請你確認——答案會儲存在 `config.local.yaml`，只需要做一次。」
 
@@ -195,6 +199,7 @@ fields @timestamp, @message
 
 若使用者以 `/aws-investigate <args>` 觸發且帶有參數（`$ARGUMENTS`）：
 
+- 參數是 IP 位址或 access key ID（`AKIA`／`ASIA` 開頭），或自然語言是在問某個 IP、某把金鑰有沒有存取我們 → 跳過 Phase 2-3，直接進入入口 C
 - 參數含 hex fragment（如 `69dfb888`）或 trace ID 格式 → 作為 trace ID，跳過 Phase 3，直接進入入口 B
 - 參數為 `scan`、`weekly`、`report` → 跳過 Phase 3，直接進入入口 A **完整版（自動跳過 checkpoint）**
 - 參數為 `quick`、`triage`，或自然語言暗示快速檢查（如「有沒有狀況」「大致看一下」「快速掃一下」） → 跳過 Phase 1-3，用 `{config}` 預設值直接進入入口 A Quick Triage（含 checkpoint）。**前提：`config.local.yaml` 必須存在且含 `log_formats`**，否則 fallback 到 Phase 1-3 互動流程
@@ -220,7 +225,7 @@ aws configure list-profiles
 > ```bash
 > aws sso login
 > ```
-> 登入後即可繼續使用 `--profile {profile}` 執行後續查詢。
+> 設定檔有多個 SSO session 時加 `--sso-session {name}`。登入後即可繼續使用 `--profile {profile}` 執行後續查詢。
 
 #### Phase 2：探索 Log Groups
 
@@ -243,10 +248,12 @@ aws logs describe-log-groups \
 用 AskUserQuestion 讓使用者選擇（radio）：
 - **入口 A：定期掃描**（週報 / 定期健檢）— 彙總所有 error，篩選重要問題後自動深入分析
 - **入口 B：特定問題調查**（已知 error、trace ID、或 PM 回報的問題）— 直接進入調查工具箱
+- **入口 C：資安查案**（某個 IP、某把金鑰有沒有存取我們的 AWS）— 先問範圍，再依序查 GuardDuty、CloudTrail、WAF、CloudFront、應用程式 log
 
 選擇後：
 - 入口 A → 詢問時間範圍（預設最近 7 天），進入「定期掃描流程」
 - 入口 B → 詢問已知資訊（trace ID、錯誤訊息、endpoint、時間範圍等），直接進入「調查工具箱」
+- 入口 C → 進入「資安查案」，範圍問題照該 reference 的第 1 節問
 
 ---
 
@@ -263,6 +270,7 @@ aws logs describe-log-groups \
 | 「寫事件報告」「incident report」 | 視情境 | `report-guidelines` + `report-template` → `analysis-principles` |
 | 「這個 error 背後有多少 unique request」 | Scan 1 第三·五層 + T2-B | `query-basics`（trace 查詢模式）→ `periodic-scan`（第三·五層）→ `investigation-toolkit`（T2-B） |
 | 「上次報告提到的那個問題」 | B | `query-basics` → `known-patterns` → `investigation-toolkit`（`context.local.md` 已在 Phase 0 載入） |
+| 「查 IP」「這個 IP 有沒有打我們」「金鑰被誰用」「可疑存取」 | C：資安查案 | `security-investigation` → `query-basics`（執行環境陷阱）→ `aws-tools`（CloudFront） |
 
 ### 入口 A：定期掃描
 
@@ -358,6 +366,17 @@ aws logs describe-log-groups \
 
 > `context.local.md` 已在 Phase 0 載入，不需要在此階段重複讀取。
 
+### 入口 C：資安查案
+
+收到 IP、access key 或「可疑存取」這類線索時走這條，不走入口 A／B 的 log group 選擇。不強制需要 `config.local.yaml`：缺 config 時，帳號範圍在問範圍時一起問。
+
+依序讀取：
+1. `references/security-investigation.md` — 問範圍、查詢順序、各來源陷阱、「0 筆」的證明力
+2. `references/query-basics.md` — 「執行環境陷阱」一節（zsh、macOS、S3 下載、Athena 分區、時區）
+3. `references/aws-tools.md` — CloudFront 紀錄欄位與下載（查到 CloudFront 時）
+
+動手前一定先問範圍（時間、帳號、深度，各附建議預設），照使用者定的範圍查，不自行擴大。
+
 ---
 
 ## 報告補完互動（技術調查完成後、產出最終報告前）
@@ -433,5 +452,8 @@ AI agent 能查到技術根因和指標，但有些資訊只有人知道。在�
 - 發現已知行為已被修復 → 標記為 `[已修復 YYYY-MM]`
 - 發現 log group 名稱與 tech stack 不一致 → 記錄對應關係
 - 發現專案穩定規則（log schema、trace ID、報告欄位、issue tracker 慣例）→ 新增到對應章節
+- 這次撞到的牆（指令失敗、查錯地方、繞路、使用者糾正）都要寫回，依性質分流：
+  - **通用的**（AWS 服務行為、CLI 與 shell 陷阱、判讀方法）：回饋到本 skill 的 references；使用者維護這個 skill 時直接改，否則整理成建議給他
+  - **組織專屬的**（帳號、表名、bucket、哪些 log 有記真實 IP、資源歸屬）：寫進 `context.local.md`，或它指向的組織查案地圖
 
 若 `context.local.md` 不存在，自動建立——依 Phase 0 Step 2 的章節結構寫入本次調查發現的內容。

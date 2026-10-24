@@ -39,10 +39,18 @@
 | S3 直接下載 | CF logging 有開但無 Athena table | 慢（下載 + 本地解析） |
 | Global WAF log | CloudFront 層有掛 WAF 且 logging 有開 | 快（有 country 欄位） |
 
-**CloudFront standard log 格式（tab-separated）：**
+**CloudFront standard log 格式（tab-separated，前兩行是註解）：**
+- Field 4: `sc-bytes`（回應大小）
 - Field 5: `c-ip`（真實用戶 IP）
+- Field 9: `sc-status`（回應狀態碼）
+- Field 14: `x-edge-result-type`（`Hit`、`Miss`、`Error` 等；WAF 擋下時為 `Error`）
+- Field 16: `x-host-header`（使用者請求的網域）
 - Field 20: `x-forwarded-for`
 - 無 country 欄位——需配合 geolocation 工具
+
+**檔名與位置：**
+- 檔名是 `{prefix}{dist_id}.{YYYY-MM-DD}-{HH}.{unique}.gz`，小時是 UTC。
+- logging 設定的 prefix 沒有結尾斜線時，實際檔案可能在 `{prefix}/` 資料夾底下；先用 `aws s3 ls s3://{bucket}/{prefix}/ --profile {profile}` 看一層確認，不要假設。
 
 **S3 直接下載流程（無 Athena table 時）：**
 
@@ -51,13 +59,11 @@
 aws cloudfront get-distribution --id {dist_id} --profile {profile} --output json \
   | python3 -c "import json,sys; c=json.load(sys.stdin)['Distribution']['DistributionConfig']['Logging']; print(f'Bucket: {c[\"Bucket\"]}\nPrefix: {c[\"Prefix\"]}\nEnabled: {c[\"Enabled\"]}')"
 
-# 2. 列出目標時段的 log 檔（檔名含 UTC hour）
-aws s3 ls "s3://{bucket}/{prefix}/{dist_id}.{YYYY-MM-DD}-{HH}" --profile {profile}
+# 2. 用精確到小時的 prefix 列檔並平行下載（避免列出整個 bucket；指令見 query-basics.md「執行環境陷阱」S3 段）
 
-# 3. 下載 + 解壓 + 分析 c-ip
-aws s3 cp "s3://{bucket}/{prefix}/{file}.gz" /tmp/cf.gz --profile {profile}
-gunzip -f /tmp/cf.gz
-tail -n +3 /tmp/cf | awk -F'\t' '{print $5}' | sort | uniq -c | sort -rn | head -20
+# 3. 解壓 + 分析 c-ip（用 gzip -dc，不用 macOS zcat）
+find {local_dir} -name '*.gz' -exec gzip -dc {} + | grep -v '^#' \
+  | awk -F'\t' '{print $5}' | sort | uniq -c | sort -rn | head -20
 ```
 
 **IP Geolocation（batch 確認國家）：**
@@ -69,7 +75,7 @@ curl -s "https://ipinfo.io/{ip}/country"    # 回傳 2-letter country code
 curl -s "https://ipinfo.io/{ip}/json"       # 完整資訊（country, org, city）
 ```
 
-比 `whois` 快 10 倍以上，適合 batch loop 50-100 筆快速分類。
+比 `whois` 快 10 倍以上，適合 batch loop 50-100 筆快速分類（`whois` 在部分企業網路會卡住）。查 IP 的擁有者與名聲（RDAP、GreyNoise 等）見 `references/security-investigation.md`「公開情資」。
 
 ## CloudWatch Alarms
 

@@ -1,11 +1,11 @@
 {
   "name": "aws-investigate",
-  "version": "0.4.0",
-  "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷，支援定期掃描與特定問題調查",
+  "version": "0.5.0",
+  "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷、資安查案（某個 IP 或金鑰有沒有存取），支援定期掃描、特定問題調查與資安查案",
   "author": {
     "name": "goodjack"
   },
   "repository": "https://github.com/goodjack/claude-marketplace",
   "license": "MIT",
-  "keywords": ["aws", "cloudwatch", "incident", "logs", "observability"]
+  "keywords": ["aws", "cloudwatch", "incident", "logs", "observability", "security", "cloudtrail", "waf"]
 }
