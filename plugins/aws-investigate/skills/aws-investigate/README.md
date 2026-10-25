@@ -6,6 +6,7 @@
 
 - **定期掃描**：彙總 CloudWatch Logs、ALB logs（Athena）、基礎設施指標的錯誤，產出分級報告
 - **特定問題調查**：透過 trace ID 追蹤個別 error、分析 exception 內容、追查 root cause 到程式碼
+- **資安查案**：查某個 IP 或某把 access key 有沒有存取 AWS，依序查 GuardDuty、CloudTrail、WAF、CloudFront、應用程式 log 與公開情資，並說明每個「查無」有多少證明力
 - **自動報告產出**：產出 3-30-300 progressive disclosure 結構的事件報告
 
 ### 支援的 AWS 服務
@@ -17,6 +18,8 @@
 | CloudWatch Metrics | get-metric-statistics | 基礎設施健康監控 |
 | ECS | describe-tasks/services | Container crash 診斷 |
 | CodePipeline | list-pipeline-executions | 部署關聯比對 |
+| GuardDuty、CloudTrail | list-findings、lookup-events／Athena | 資安查案 |
+| WAF、CloudFront Logs | Athena／S3 | 資安查案：外部請求與回應 |
 | ElastiCache (Redis) | Metrics + CLI | Memory 暴增調查 |
 
 ## 安裝
@@ -83,6 +86,7 @@ cd claude-marketplace
 - 「這個 trace ID 69dfb888 發生什麼事？」
 - 「Redis memory 在暴增，幫我查」
 - 「寫一份 502 error 的事件報告」
+- 「這個 IP 有沒有打我們？」
 
 ## 設定檔
 
@@ -116,6 +120,7 @@ aws-investigate/
     ├── investigation-toolkit.md # T1-T5 深入調查工具
     ├── known-patterns.md       # 跨組織通用的已知行為
     ├── aws-tools.md            # AWS 診斷工具速查
+    ├── security-investigation.md # 資安查案流程（IP／金鑰）
     ├── metrics-charts.md       # CloudWatch 圖表產生模板
     ├── report-template.md      # 報告模板（定期掃描 + 事件）
     └── analysis-principles.md  # 分析判讀原則與陷阱

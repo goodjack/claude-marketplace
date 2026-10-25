@@ -26,10 +26,10 @@ goodjack 的個人 Claude Code plugin marketplace。
 
 ### aws-investigate
 
-AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷。
+AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷、資安查案。
 
 包含以下 skills：
-- **aws-investigate** — 調查 AWS 線上環境的 error、效能劣化、基礎設施異常，支援定期掃描（彙總+篩選+報告）與特定問題調查（trace 追蹤+root cause 分析）
+- **aws-investigate** — 調查 AWS 線上環境的 error、效能劣化、基礎設施異常，支援定期掃描（彙總+篩選+報告）、特定問題調查（trace 追蹤+root cause 分析）與資安查案（某個 IP 或金鑰有沒有存取、打到哪、回了什麼）
 
 ### writing-style
 

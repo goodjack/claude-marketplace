@@ -15,7 +15,7 @@
     },
     {
       "name": "aws-investigate",
-      "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷",
+      "description": "AWS 線上環境調查工具——error 分析、效能劣化追查、基礎設施異常診斷、資安查案（某個 IP 或金鑰有沒有存取）",
       "source": "./plugins/aws-investigate"
     },
     {

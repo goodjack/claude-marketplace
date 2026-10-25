@@ -153,9 +153,59 @@ aws logs start-query \
 | `status: Failed` / `Cancelled` | 記錄錯誤訊息，用更小的時間範圍重試 |
 | `recordsMatched: 0` | 不代表沒問題——確認 log group 和時間範圍是否正確，再試一次 |
 | `status: Running` 超過 30 秒 | 取消查詢，縮小範圍或減少 log group 數量後重試 |
-| SSO Token 過期（`Token has expired and refresh failed`） | 執行 `aws sso login`（**不帶 `--profile`**，SSO session 是共用的），登入後繼續 |
-| `LimitExceededException` | 等 5 秒再重試（CloudWatch 並發查詢上限） |
+| SSO Token 過期（`Token has expired and refresh failed`） | 執行 `aws sso login`（**不帶 `--profile`**，SSO session 是共用的；設定檔有多個 `sso-session` 時用 `--sso-session {name}` 指定），登入後繼續 |
+| `LimitExceededException` | 等 5 秒再重試（CloudWatch 同時查詢數上限） |
 | FilterLogEvents `ThrottlingException` | 等 2 秒 + exponential backoff（5 TPS 硬限） |
+| `ResourceNotFoundException`（StartQuery） | log group 不在這個帳號或區域；先用 `describe-log-groups` 確認再查 |
+| `InvalidParameterException`：`logGroupNames` 長度限制 | 一支 Insights 查詢最多 50 個 log group，分批送 |
+| `MalformedQueryException: token recognition error at '\'` | 跳脫字元在組字串時被吃掉或多加；Python 組查詢用 raw string |
+| `MalformedQueryException: Ephemeral field is already defined` | 同一支查詢裡 `parse` 或 `fields ... as` 把同一個欄位名稱定義了兩次，改名 |
+
+---
+
+## 執行環境陷阱（macOS／zsh／S3／Athena／時區）
+
+歷次調查反覆撞到、而且錯誤訊息不會直接指出原因的坑。
+
+**zsh**（macOS 預設 shell，Bash 工具也跑在 zsh）：
+- **不會自動拆字**：`P="--profile x --region y"; aws ... $P` 會變成一個參數，回 `Unknown options`；`for x in "a b"; do set -- $x` 同樣失效。改用陣列 `P=(--profile x --region y); aws ... "${P[@]}"`、`${=x}`，或直接 `export AWS_PROFILE=x AWS_REGION=y`。
+- 指令中出現 `==` 或 `=====` 開頭的字（例如 `echo == $p`）會被當成指令路徑展開，回 `= not found`；加引號。
+- `*.gz(N)` 這類 glob 修飾在非互動執行不可靠；列檔改用 `find` 或 Python。
+
+**macOS 工具差異**：
+- 沒有 `timeout`（有裝 coreutils 才有 `gtimeout`）；長指令改成背景執行。
+- `zcat` 對 `.gz` 會去找 `.Z` 而失敗，錯誤若被 `2>/dev/null` 藏起來就變成「比對 0 筆」的假陰性；一律用 `gzip -dc`。
+- BSD `grep` 沒有 `-P`；用 `grep -E`、`rg` 或 Python。
+- `date` 用 `-v-1d`，不是 GNU 的 `-d`；換算時間戳記用 Python（見上方「Insights CLI 操作」）。
+
+**Python 與憑證**：
+- 系統 Python 通常沒有 boto3，awscli 自帶的 Python 也 import 不到 botocore；用 `uv run -q --with boto3 python -I script.py`，憑證交給 `AWS_PROFILE`。
+- 不要讀 `~/.aws/sso/cache` 或 `aws configure export-credentials` 把憑證寫成檔案：沒必要，Claude Code 的自動模式也會擋下。
+- 無人值守的排程或長時間監看：SSO token 過期後每次查詢都會失敗，要偵測到就停下並通知，不要一直記 FAIL。
+
+**AWS CLI 與 JMESPath**：
+- 欄位可能是 null 時，`starts_with()`、`length()` 會報 `invalid type for value: None`；先判斷存在：`Functions[?Runtime && starts_with(Runtime, 'nodejs')]`。
+- 跑超過兩分鐘的迴圈（逐一列 cluster、逐區域掃描）直接背景執行並寫進度檔；等待查詢完成用 `until` 迴圈輪詢 status，不要單獨 `sleep`。
+
+**S3 下載大量 log**（CloudFront、WAF、CloudTrail 這類每小時好幾個檔、累積多年的 bucket）：
+- `aws s3 ls --recursive`、`--summarize`、`aws s3 cp --recursive --exclude "*" --include "X*"` 都會先列出整個 prefix，多年份 bucket 要跑好幾分鐘甚至逾時。
+- 改用精確到小時的 prefix 列檔，再平行下載：
+
+```bash
+aws s3api list-objects-v2 --bucket {bucket} --prefix "{prefix}/{dist_id}.{YYYY-MM-DD}-{HH}." \
+  --query 'Contents[].Key' --output text --profile {profile} | tr '\t' '\n' \
+  | xargs -P 16 -I{} aws s3 cp "s3://{bucket}/{}" {local_dir}/ --only-show-errors --profile {profile}
+```
+
+**Athena**：
+- 依掃描量計費（約 5 美元／TB）；查詢一定帶分區條件，沒分區的表不要直接查。
+- 回 `No output location provided`：用 `aws athena get-work-group` 看 workgroup 有沒有設定結果位置；有些 workgroup 強制使用自己的設定，用戶端指定的會被覆蓋。
+- 分區範本可能指錯資料夾，查出 0 筆也不報錯。查前用 `aws glue get-table` 核對 `storage.location.template`（partition projection）或分區位置，跟 `aws s3 ls` 看到的實際資料夾比對。
+- 轉到 Glacier 類儲存的物件 Athena 會直接略過、不報錯；查舊資料前用 `aws s3api get-bucket-lifecycle-configuration` 確認轉存天數。
+
+**時區**：
+- WAF `timestamp` 是 UTC 毫秒；CloudFront 檔名的小時與紀錄時間是 UTC；CloudTrail `eventTime` 是 UTC；Insights 的時間參數是秒、FilterLogEvents 是毫秒。
+- 當地時間的「某一天」換成 UTC 可能跨兩天（UTC+8 的一整天是前一天 16:00 到當天 16:00 UTC），分區條件要涵蓋兩個 UTC 日。
 
 ---
 
